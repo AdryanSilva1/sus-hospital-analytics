@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from dashboard.dados import recorte, tabela_principal
+from dashboard.dados import filtros_fora, recorte, tabela_principal
 
 NOMES_UF = {"Sul": "Região Sul", "PR": "Paraná", "SC": "Santa Catarina", "RS": "Rio Grande do Sul"}
 MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
@@ -38,3 +38,14 @@ class Painel:
         """
         filtros = {**self.filtros, **trocar}
         return recorte(self.tabelas, nome or self.principal, filtros, ignorar)
+
+    def mesmo_periodo_do_ano_anterior(self):
+        """(atual, anterior) da tabela por mês, com os mesmos meses nos dois anos.
+
+        None quando não dá para comparar: a tabela por mês não tem região,
+        município, CID nem perfil, e o primeiro ano não tem ano anterior.
+        """
+        if filtros_fora("mes", self.filtros) or self.ano - 1 not in self.anos:
+            return None
+        anterior = self.dados("mes", ano=self.ano - 1)
+        return self.dados("mes"), anterior[anterior["mes"] <= self.ultimo_mes]

@@ -2,7 +2,7 @@
 
 import plotly.graph_objects as go
 
-from dashboard.medidas import formatar
+from dashboard.medidas import MEDIDAS, formatar
 
 # Uma cor por estado, igual em todos os visuais
 CORES_UF = {"PR": "#2E86AB", "SC": "#E4572E", "RS": "#F3A712"}
@@ -103,13 +103,16 @@ def colunas(dados, rotulo, medida, cor=AZUL, altura=200):
 
 def linha_mensal(atual, anterior, medida, ano, meses):
     """Evolução mês a mês do ano escolhido, com o ano anterior pontilhado atrás."""
+    # Valores em reais vão para o eixo em milhões ("R$ 400 mi" em vez de 400.000.000)
+    em_milhoes = MEDIDAS[medida][2] == "reais"
     fig = go.Figure()
     for dados, nome, cor, traco in [(anterior, ano - 1, AZUL_CLARO, "dot"), (atual, ano, AZUL, "solid")]:
         if dados is None or dados.empty:
             continue
         dados = dados.sort_values("mes")
         fig.add_trace(go.Scatter(
-            x=[meses[m - 1] for m in dados["mes"]], y=dados["valor"], name=str(nome),
+            x=[meses[m - 1] for m in dados["mes"]], name=str(nome),
+            y=dados["valor"] / 1e6 if em_milhoes else dados["valor"],
             mode="lines+markers", line=dict(color=cor, width=3, dash=traco), marker=dict(size=7),
             text=_texto(dados["valor"], medida, None),
             hovertemplate=f"<b>%{{x}}/{nome}</b><br>{medida}: %{{text}}<extra></extra>",
@@ -120,7 +123,8 @@ def linha_mensal(atual, anterior, medida, ano, meses):
         legend=dict(orientation="h", y=1.12, x=0),
         xaxis=dict(title="", categoryorder="array", categoryarray=meses, fixedrange=True),
         yaxis=dict(title="", gridcolor="#EEF1F5", fixedrange=True, rangemode="tozero",
-                   tickformat=",.0f"),
+                   tickformat=",.0f", tickprefix="R$ " if em_milhoes else "",
+                   ticksuffix=" mi" if em_milhoes else ""),
     )
     return fig
 

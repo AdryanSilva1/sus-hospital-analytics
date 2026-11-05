@@ -46,14 +46,17 @@ def titulo(texto, ajuda=None):
         st.caption(ajuda)
 
 
-def cartao(rotulo, valor, detalhe=None, ativo=False):
-    classe = "cartao ativo" if ativo else "cartao"
+def cartao(icone, rotulo, valor, detalhe=None):
+    """Cartão de número, no mesmo estilo do número principal do topo."""
     linha_detalhe = f'<div class="cartao-detalhe">{detalhe}</div>' if detalhe else ""
     html(f"""
-        <div class="{classe}">
-            <div class="cartao-rotulo">{rotulo}</div>
-            <div class="cartao-valor">{valor}</div>
-            {linha_detalhe}
+        <div class="cartao">
+            <div class="cartao-icone">{icone}</div>
+            <div>
+                <div class="cartao-rotulo">{rotulo}</div>
+                <div class="cartao-valor">{valor}</div>
+                {linha_detalhe}
+            </div>
         </div>""")
 
 

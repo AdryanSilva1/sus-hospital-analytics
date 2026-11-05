@@ -6,7 +6,6 @@ import streamlit as st
 
 from dashboard import filtros, icones
 from dashboard.componentes import LOGO, NOMES_FILTRO, html, tile
-from dashboard.dados import filtros_fora
 from dashboard.medidas import MINIMO_PARA_RAZAO, formatar, total, variacao
 from dashboard.painel import MESES, NOMES_UF, Painel
 
@@ -89,19 +88,10 @@ def cabecalho(controle):
     return ano, ultimo_mes, anos, c_numero
 
 
-def _comparacao(painel):
-    """(atual, anterior) da tabela por mês, até o mesmo mês. None se não der para comparar."""
-    # A tabela por mês não tem região, município, CID nem perfil
-    if filtros_fora("mes", painel.filtros) or painel.ano - 1 not in painel.anos:
-        return None
-    anterior = painel.dados("mes", ano=painel.ano - 1)
-    return painel.dados("mes"), anterior[anterior["mes"] <= painel.ultimo_mes]
-
-
 def numero_principal(espaco, painel):
     medida = painel.medida
     detalhe = ""
-    comparacao = _comparacao(painel)
+    comparacao = painel.mesmo_periodo_do_ano_anterior()
     if comparacao:
         mudanca = variacao(total(comparacao[0], medida), total(comparacao[1], medida))
         if mudanca:
