@@ -35,33 +35,32 @@ def processar_ano(uf, ano, arquivos):
     return anuais, total
 
 
+def _baixar_se_faltar(arquivo, descricao, baixar, salvar=load.salvar_tabela, refazer=False):
+    """Baixa uma tabela de apoio que ainda não existe.
+
+    Se falhar, só avisa: o resto do pipeline segue. A API do IBGE, por exemplo,
+    não responde fora do Brasil (como nos servidores do GitHub Actions).
+    """
+    if arquivo.exists() and not refazer:
+        return
+    print(f"Baixando {descricao}...")
+    try:
+        salvar(baixar(), arquivo)
+    except Exception as erro:
+        print(f"  Aviso: não consegui baixar {descricao} ({erro})")
+
+
 def baixar_tabelas_de_apoio():
-    # Refaz a lista se ela for de uma versão antiga, ainda sem a região
-    if not ARQ_MUNICIPIOS.exists() or "regiao" not in pd.read_parquet(ARQ_MUNICIPIOS).columns:
-        print("Baixando municípios (IBGE)...")
-        load.salvar_tabela(extract.baixar_municipios(UFS), ARQ_MUNICIPIOS)
+    # A lista de municípios é refeita se for de uma versão antiga, ainda sem a região
+    sem_regiao = ARQ_MUNICIPIOS.exists() and "regiao" not in pd.read_parquet(ARQ_MUNICIPIOS).columns
 
-    # As de baixo são opcionais: se falharem, o painel funciona sem elas
-    if not ARQ_CID10.exists():
-        print("Baixando tabela CID-10 (DATASUS)...")
-        try:
-            load.salvar_tabela(extract.baixar_cid10(), ARQ_CID10)
-        except Exception as erro:
-            print(f"  Aviso: não consegui baixar a CID-10 ({erro})")
-
-    if not ARQ_MALHA.exists():
-        print("Baixando contorno dos municípios (IBGE)...")
-        try:
-            load.salvar_json(extract.baixar_malha(UFS), ARQ_MALHA)
-        except Exception as erro:
-            print(f"  Aviso: não consegui baixar o mapa ({erro})")
-
-    if not ARQ_POPULACAO.exists():
-        print("Baixando população do Censo 2022 (IBGE)...")
-        try:
-            load.salvar_tabela(extract.baixar_populacao(UFS), ARQ_POPULACAO)
-        except Exception as erro:
-            print(f"  Aviso: não consegui baixar a população ({erro})")
+    _baixar_se_faltar(ARQ_MUNICIPIOS, "municípios e regiões (IBGE)",
+                      lambda: extract.baixar_municipios(UFS), refazer=sem_regiao)
+    _baixar_se_faltar(ARQ_CID10, "tabela CID-10 (DATASUS)", extract.baixar_cid10)
+    _baixar_se_faltar(ARQ_MALHA, "contorno dos municípios (IBGE)",
+                      lambda: extract.baixar_malha(UFS), salvar=load.salvar_json)
+    _baixar_se_faltar(ARQ_POPULACAO, "população do Censo 2022 (IBGE)",
+                      lambda: extract.baixar_populacao(UFS))
 
 
 def main():
