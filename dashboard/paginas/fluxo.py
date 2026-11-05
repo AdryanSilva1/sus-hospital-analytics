@@ -21,6 +21,7 @@ def numeros(fluxo, municipio):
 
     with st.container(horizontal=True, key="cartoes-fluxo"):
         if municipio is None:
+            cartao("🏥", "Internações no período", numero(fluxo["internacoes"].sum()))
             cartao("🏙️", "Internações de quem mora em outra cidade",
                    _parte(fluxo.loc[de_fora, "internacoes"].sum(), fluxo["internacoes"].sum()))
             outro_estado = fluxo["cod_residencia"].str[:2] != fluxo["cod_municipio"].str[:2]
@@ -75,7 +76,7 @@ def ligacoes(fluxo, municipio, de, para):
 def mostrar(painel):
     municipio = st.session_state.cod_municipio
     fluxo = painel.dados("fluxo", ignorar=["cod_municipio"])
-    st.caption("Esta aba conta internações (sem sistema do corpo e procedimento). "
+    st.caption("Esta página conta internações (sem separar por sistema do corpo ou procedimento). "
                "Clique num município para ver de onde vêm os pacientes dele.")
     aviso(painel, "fluxo", nao_tem=["capitulo_cid", "tipo_procedimento"], tem=["cod_municipio"])
     numeros(fluxo, municipio)

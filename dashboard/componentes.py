@@ -28,7 +28,10 @@ NOMES_FILTRO = {
 
 
 def html(conteudo):
-    st.markdown(conteudo, unsafe_allow_html=True)
+    # Tira recuo e linhas vazias: no Markdown, uma linha recuada depois de uma
+    # linha vazia vira bloco de código e o HTML aparece como texto na tela
+    linhas = (linha.strip() for linha in conteudo.splitlines())
+    st.markdown("\n".join(linha for linha in linhas if linha), unsafe_allow_html=True)
 
 
 def tile(chave, altura=None):

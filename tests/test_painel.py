@@ -64,3 +64,9 @@ def test_funciona_sem_os_dados_do_ibge(pasta_falsa, tmp_path):
         (tmp_path / arquivo).unlink()
     for pagina in PAGINAS:
         assert not abrir(pagina).exception
+
+
+@pytest.mark.parametrize("pagina", PAGINAS)
+def test_nenhum_html_aparece_como_texto(pasta_falsa, pagina):
+    teste = abrir(pagina)
+    assert not any("</div>" in c.value for c in teste.code)
