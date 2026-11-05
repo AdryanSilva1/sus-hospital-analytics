@@ -43,5 +43,6 @@ jobs:
             echo "Nada novo este mês."
           else
             git commit -m "dados: atualização mensal $(date +%Y-%m)"
+            git pull --rebase origin main   # alguém pode ter enviado código enquanto rodava
             git push
           fi

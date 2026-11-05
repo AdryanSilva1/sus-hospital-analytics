@@ -57,3 +57,10 @@ def test_filtro_aparece_como_etiqueta(pasta_falsa):
     etiquetas = [b.label for b in teste.button]
     assert any("Estado: SC" in e for e in etiquetas)
     assert any("Sexo: Feminino" in e for e in etiquetas)
+
+
+def test_funciona_sem_os_dados_do_ibge(pasta_falsa, tmp_path):
+    for arquivo in ["municipios.parquet", "municipios.geojson", "populacao.parquet"]:
+        (tmp_path / arquivo).unlink()
+    for pagina in PAGINAS:
+        assert not abrir(pagina).exception

@@ -26,9 +26,7 @@ def carregar():
     """Lê as tabelas geradas pelo pipeline. O painel nunca busca dado no DATASUS."""
     tabelas = {nome: pd.read_parquet(PASTA / f"por_{nome}.parquet") for nome in TABELAS}
 
-    municipios = pd.read_parquet(PASTA / "municipios.parquet")
-    if "regiao" not in municipios:  # dados de uma versão antiga do pipeline
-        municipios["regiao"] = municipios["uf"]
+    municipios = _municipios(tabelas["municipio"])
     nomes = municipios[["cod_municipio", "municipio"]]
 
     tabelas["municipio"] = _com_nome(tabelas["municipio"], nomes, "cod_municipio", "municipio")
@@ -49,6 +47,21 @@ def carregar():
 
     controle = pd.read_parquet(PASTA / "controle.parquet")
     return tabelas, controle
+
+
+def _municipios(por_municipio):
+    """Nome e região de cada município, do IBGE.
+
+    Sem o arquivo (a API do IBGE só responde no Brasil), o painel mostra o código
+    do município e usa o estado como região, para não ficar fora do ar.
+    """
+    municipios = _ler_opcional("municipios.parquet")
+    if municipios is None:
+        codigos = por_municipio[["cod_municipio", "uf"]].drop_duplicates()
+        return codigos.assign(municipio="Município " + codigos["cod_municipio"], regiao=codigos["uf"])
+    if "regiao" not in municipios:  # dados de uma versão antiga do pipeline
+        municipios["regiao"] = municipios["uf"]
+    return municipios
 
 
 def _ler_opcional(arquivo):
