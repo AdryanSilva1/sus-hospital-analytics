@@ -1,0 +1,43 @@
+name: Atualizar dados
+
+on:
+  schedule:
+    - cron: "0 12 15 * *"   # dia 15 de cada mês, 9h de Brasília
+  workflow_dispatch:         # botão para rodar na mão
+
+permissions:
+  contents: write
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependências
+        run: pip install -r requirements-pipeline.txt
+
+      - name: Testes
+        run: pytest -q
+
+      - name: Rodar pipeline
+        run: python -m pipeline.run
+
+      - name: Salvar dados novos
+        run: |
+          git config user.name "AdryanSilva1"
+          git config user.email "152924015+AdryanSilva1@users.noreply.github.com"
+          git add data/processados
+          if git diff --cached --quiet; then
+            echo "Nada novo este mês."
+          else
+            git commit -m "dados: atualização mensal $(date +%Y-%m)"
+            git push
+          fi

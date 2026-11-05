@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Arquivos brutos do DATASUS (grandes, baixados de novo quando precisar)
+data/brutos/*
+!data/brutos/.gitkeep
