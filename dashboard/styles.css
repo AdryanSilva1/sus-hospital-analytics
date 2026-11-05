@@ -30,6 +30,7 @@ header[data-testid="stHeader"] [aria-current="page"] { background: rgba(255, 255
     align-items: center;
 }
 .st-key-tile-ano [data-testid="stSelectbox"] { width: 100%; }
+.st-key-tile-ano { padding-top: 4px; }
 
 /* Título de bloco: à esquerda, com um traço de destaque */
 .tile-titulo {
@@ -49,10 +50,13 @@ header[data-testid="stHeader"] [aria-current="page"] { background: rgba(255, 255
 .subtitulo-painel { font-size: .85rem; color: #444; text-align: center; }
 
 .st-key-tile-uf { background: #E7F4F8; }
-.st-key-tile-uf [data-testid="stButtonGroup"] { justify-content: center; }
-.st-key-tile-uf [data-testid="stButtonGroup"] > div { flex-wrap: nowrap; }
-.st-key-tile-uf button { min-width: 46px; min-height: 46px; padding: 0 8px; }
-.st-key-tile-uf button p { font-size: 1.1rem; font-weight: 800; }
+.estado { display: flex; align-items: center; gap: 10px; justify-content: center; }
+.estado .bandeira { border-radius: 3px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .15); }
+.estado span { font-size: 2rem; font-weight: 800; color: #1F2D3D; }
+/* Os quatro botões em grade 2x2, ao lado da bandeira */
+.st-key-tile-uf [data-testid="stButtonGroup"] > div { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+.st-key-tile-uf [data-testid="stButtonGroup"] button { min-height: 30px; padding: 0 6px; border-radius: 4px !important; }
+.st-key-tile-uf [data-testid="stButtonGroup"] button p { font-size: .85rem; font-weight: 700; }
 
 .kpi, .atualizado { display: flex; align-items: center; justify-content: center; gap: 14px; }
 .kpi-icone, .atualizado-icone { font-size: 2.3rem; line-height: 1; }
@@ -64,9 +68,10 @@ header[data-testid="stHeader"] [aria-current="page"] { background: rgba(255, 255
 
 .st-key-tile-ajuda button {
     border-radius: 50%; width: 48px; height: 48px; margin: auto;
-    border: 3px solid #1F4E79; color: #1F4E79; font-size: 1.4rem; font-weight: 700;
+    border: 3px solid #1F4E79; color: #1F4E79; font-weight: 700;
 }
-.st-key-tile-ajuda [data-testid="stPopoverButton"] svg { display: none; }
+.st-key-tile-ajuda button [data-testid="stIconMaterial"], .st-key-tile-ajuda button svg { display: none; }
+.st-key-tile-ano label p { font-size: .78rem; color: #555; }
 
 /* ── Botões dos sistemas do corpo (ícone em cima, nome embaixo) ── */
 .st-key-sistemas {
@@ -92,7 +97,7 @@ header[data-testid="stHeader"] [aria-current="page"] { background: rgba(255, 255
 .st-key-chips .st-key-chip-tudo button p { color: #1F4E79; text-decoration: underline; }
 
 /* ── Filtros do paciente (direita) ── */
-.st-key-tile-filtros { gap: .4rem; padding: 8px 14px; }
+.st-key-tile-filtros { gap: .1rem; padding: 8px 14px; }
 .st-key-tile-filtros [data-testid="stSelectbox"] { padding-left: 11px; }
 .st-key-tile-filtros label p { font-size: .8rem; color: #555; font-weight: 600; }
 
@@ -100,8 +105,9 @@ header[data-testid="stHeader"] [aria-current="page"] { background: rgba(255, 255
 .st-key-tile-medidas { padding: 8px 10px; }
 .st-key-tile-medidas [data-testid="stRadio"], .st-key-tile-medidas [data-testid="stRadio"] > div { width: 100%; }
 .st-key-tile-medidas [role="radiogroup"] { gap: 3px; width: 100%; flex-direction: column; align-items: stretch; }
+.st-key-tile-medidas [data-testid="stRadio"] > div:last-child { width: 100%; }
 .st-key-tile-medidas [data-testid="stRadioOption"] {
-    width: 100%; margin: 0; padding: 7px 10px; box-sizing: border-box;
+    width: 100%; margin: 0; padding: 8px 10px; box-sizing: border-box;
     border: 1px solid #E3E8EF; border-radius: 2px; cursor: pointer;
 }
 .st-key-tile-medidas [data-testid="stRadioOption"] > div > div:first-child { display: none; }
@@ -130,8 +136,7 @@ header[data-testid="stHeader"] [aria-current="page"] { background: rgba(255, 255
 .tabela-pbi td.barra div { position: absolute; left: 0; top: 3px; bottom: 3px; background: #DDF1F7; }
 .tabela-pbi td.barra span { position: relative; }
 .tabela-pbi tr.destaque td { background: #FFF6D6; font-weight: 600; }
-.tabela-pbi tfoot td { font-weight: 700; border-top: 2px solid #1F3864; padding: 7px 8px;
-                       position: sticky; bottom: 0; background: #FFFFFF; }
+.tabela-pbi tfoot td { font-weight: 700; border-top: 2px solid #1F3864; padding: 7px 8px; }
 
 /* Cartões das outras páginas */
 [class*="st-key-cartoes"] { gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
@@ -145,3 +150,4 @@ header[data-testid="stHeader"] [aria-current="page"] { background: rgba(255, 255
 .linha-detalhe { display: flex; justify-content: space-between; padding: 8px 2px;
                  border-bottom: 1px solid #EDF0F4; }
 .linha-detalhe b { color: #1F4E79; }
+.st-key-tile-ajuda button p { font-size: 1.5rem; font-weight: 700; color: #1F4E79; }

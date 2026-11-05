@@ -10,11 +10,13 @@ from dashboard.medidas import MEDIDAS, formatar
 from dashboard.visuais import CONFIG
 
 LOGO = """
-<svg width="58" height="58" viewBox="0 0 64 64">
-  <rect x="2" y="2" width="60" height="60" rx="14" fill="#E9F3FB"/>
-  <path d="M32 50s-17-10.5-17-22a9 9 0 0 1 17-4.2A9 9 0 0 1 49 28c0 11.5-17 22-17 22z" fill="#F06B5B"/>
-  <rect x="28.5" y="21" width="7" height="20" rx="1.5" fill="#fff"/>
-  <rect x="22" y="27.5" width="20" height="7" rx="1.5" fill="#fff"/>
+<svg width="64" height="64" viewBox="0 0 64 64">
+  <circle cx="18" cy="40" r="6" fill="#9DBBD6"/><path d="M8 58c0-7 4.5-11 10-11s10 4 10 11z" fill="#9DBBD6"/>
+  <circle cx="46" cy="40" r="6" fill="#9DBBD6"/><path d="M36 58c0-7 4.5-11 10-11s10 4 10 11z" fill="#9DBBD6"/>
+  <circle cx="32" cy="42" r="7" fill="#1F4E79"/><path d="M20 62c0-8 5.5-13 12-13s12 5 12 13z" fill="#1F4E79"/>
+  <path d="M32 31s-13-7.5-13-16a6.8 6.8 0 0 1 13-3 6.8 6.8 0 0 1 13 3c0 8.5-13 16-13 16z" fill="#F06B5B"/>
+  <rect x="29.5" y="10" width="5" height="14" rx="1" fill="#fff"/>
+  <rect x="25" y="14.5" width="14" height="5" rx="1" fill="#fff"/>
 </svg>
 """
 

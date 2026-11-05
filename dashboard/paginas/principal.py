@@ -6,10 +6,14 @@ from dashboard import filtros, icones, visuais
 from dashboard.componentes import aviso, grafico, html, tabela, tabela_pbi, tile, titulo
 from dashboard.medidas import MEDIDAS, calcular, tirar_pequenos, total
 
-# Altura das duas faixas de blocos (px)
-ALTURA_FAIXA_1 = 450
-ALTURA_FAIXA_2 = 440
-ALTURA_MAPA = ALTURA_FAIXA_1 - 70
+# Altura dos blocos (px). Cada coluna soma a mesma altura, então todas
+# terminam na mesma linha, como no Power BI.
+ALTURA = {
+    "regiao": 360, "municipio": 520,      # coluna da esquerda
+    "mapa": 520, "cid": 360,              # coluna do meio
+    "filtros": 330, "sistema": 550,       # coluna da direita
+}
+ALTURA_MAPA = ALTURA["mapa"] - 80
 
 PERFIL = [
     ("faixa_etaria", "Faixa Etária", ["0 a 14", "15 a 29", "30 a 44", "45 a 59", "60 a 74", "75 ou mais"]),
@@ -70,8 +74,9 @@ def mapa(painel, cores):
 
     df = calcular(painel.dados("municipio", ignorar=["cod_municipio"]),
                   ["cod_municipio", "municipio", "regiao", "uf"], painel.medida)
-    fundo = st.segmented_control("Fundo", ["Ruas", "Simples"], default="Ruas", key="fundo_mapa",
-                                 label_visibility="collapsed") or "Ruas"
+    # "Simples" abre em qualquer navegador; "Ruas" precisa de internet e WebGL
+    fundo = st.segmented_control("Fundo", ["Simples", "Ruas"], default="Simples", key="fundo_mapa",
+                                 label_visibility="collapsed") or "Simples"
     fig = visuais.mapa(tirar_pequenos(df, painel.medida), painel.medida, malha,
                        st.session_state.f_uf, st.session_state.cod_municipio,
                        com_ruas=fundo == "Ruas", cores=("regiao", cores), altura=ALTURA_MAPA)
@@ -83,7 +88,7 @@ def por_doenca(painel):
                   painel.medida)
     df = tirar_pequenos(df, painel.medida)
     tabela(df, {"cid": "CID", "descricao": "Diagnóstico"}, "painel-cid", "cid",
-           painel.medida, altura=ALTURA_FAIXA_2 - 80)
+           painel.medida, altura=ALTURA["cid"] - 70)
     aviso(painel, "cid")
 
 
@@ -99,35 +104,33 @@ def por_sistema(painel):
 
 
 def mostrar(painel):
-    """Duas faixas de blocos com a mesma altura, como num painel do Power BI."""
     cores = cores_das_regioes(painel)
     medida = painel.medida
-    larguras = [1.2, 1.65, 1.6]
+    esquerda, centro, direita = st.columns([1.15, 1.75, 1.6])
 
-    regiao, centro, direita = st.columns(larguras)
-    with regiao, tile("regiao", ALTURA_FAIXA_1):
-        titulo(f"{medida} por região")
-        por_regiao(painel, cores)
-        aviso(painel, "municipio", tem=["regiao"])
-    with centro, tile("mapa", ALTURA_FAIXA_1):
-        titulo(f"{medida} por município no mapa")
-        mapa(painel, cores)
+    with esquerda:
+        with tile("regiao", ALTURA["regiao"]):
+            titulo(f"{medida} por região")
+            por_regiao(painel, cores)
+            aviso(painel, "municipio", tem=["regiao"])
+        with tile("municipio", ALTURA["municipio"]):
+            titulo(f"{medida} por município")
+            por_municipio(painel, cores)
+
+    with centro:
+        with tile("mapa", ALTURA["mapa"]):
+            titulo(f"{medida} por município no mapa")
+            mapa(painel, cores)
+        with tile("cid", ALTURA["cid"]):
+            titulo(f"{medida} por diagnóstico (CID-10)")
+            por_doenca(painel)
+
     with direita:
         filtros_coluna, medidas_coluna = st.columns([1, 1.15])
-        with filtros_coluna, tile("filtros", ALTURA_FAIXA_1):
-            titulo("Filtros do paciente")
+        with filtros_coluna, tile("filtros", ALTURA["filtros"]):
             filtros_do_paciente()
-        with medidas_coluna, tile("medidas", ALTURA_FAIXA_1):
-            titulo("Medida")
+        with medidas_coluna, tile("medidas", ALTURA["filtros"]):
             lista_de_medidas()
-
-    municipio, diagnostico, sistema = st.columns(larguras)
-    with municipio, tile("municipio", ALTURA_FAIXA_2):
-        titulo(f"{medida} por município")
-        por_municipio(painel, cores)
-    with diagnostico, tile("cid", ALTURA_FAIXA_2):
-        titulo(f"{medida} por diagnóstico (CID-10)")
-        por_doenca(painel)
-    with sistema, tile("sistema", ALTURA_FAIXA_2):
-        titulo(f"{medida} por sistema do corpo")
-        por_sistema(painel)
+        with tile("sistema", ALTURA["sistema"]):
+            titulo(f"{medida} por sistema do corpo")
+            por_sistema(painel)

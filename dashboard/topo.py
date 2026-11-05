@@ -46,17 +46,22 @@ def cabecalho(controle):
     e o espaço reservado para o número principal, preenchido depois por numero_principal()."""
     anos = [int(a) for a in sorted(controle["ano"].unique(), reverse=True)]
     c_logo, c_titulo, c_uf, c_numero, c_ano, c_ajuda, c_atual = st.columns(
-        [0.5, 2.3, 1.55, 1.8, 0.8, 0.5, 1.45], vertical_alignment="center")
+        [0.55, 2.2, 1.75, 1.8, 0.8, 0.5, 1.4], vertical_alignment="center")
 
     with c_logo, tile("logo"):
         html(f'<div class="logo">{LOGO}</div>')
 
     with c_uf, tile("uf"):
-        st.segmented_control("Estado", ["Sul", "PR", "SC", "RS"], key="f_uf",
-                             on_change=_sem_vazio, args=("f_uf", "Sul"), label_visibility="collapsed")
+        bandeira, botoes = st.columns([1, 1.25], vertical_alignment="center")
+        with bandeira:
+            uf = st.session_state.f_uf
+            html(f'<div class="estado">{icones.BANDEIRAS[uf]}<span>{uf}</span></div>')
+        with botoes:
+            st.segmented_control("Estado", ["Sul", "PR", "SC", "RS"], key="f_uf", on_change=_sem_vazio,
+                                 args=("f_uf", "Sul"), label_visibility="collapsed")
 
     with c_ano, tile("ano"):
-        ano = int(st.selectbox("Ano", anos, key="ano", label_visibility="collapsed"))
+        ano = int(st.selectbox("📅 Ano", anos, key="ano"))
 
     ultimo_mes = int(controle.loc[controle["ano"] == ano, "ultimo_mes"].min())
     periodo = str(ano) if ultimo_mes == 12 else f"{ano} · jan a {MESES[ultimo_mes - 1]}"

@@ -78,7 +78,7 @@ def barras(dados, rotulo, medida, chave, selecionado=None, cor=AZUL, altura=None
     fig.update_layout(
         **_BASE,
         height=altura or max(140, 25 * len(dados) + 10),
-        xaxis=dict(visible=False, range=[0, maior * 1.3], fixedrange=True),
+        xaxis=dict(visible=False, range=[0, maior * 1.4], fixedrange=True),
         yaxis=dict(title="", autorange="reversed", fixedrange=True,
                    categoryorder="array", categoryarray=list(dados[rotulo])),
         bargap=0.28,
