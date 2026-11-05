@@ -7,3 +7,4 @@ venv/
 # Arquivos brutos do DATASUS (grandes, baixados de novo quando precisar)
 data/brutos/*
 !data/brutos/.gitkeep
+.ruff_cache/

@@ -8,14 +8,22 @@ import requests
 from dbfread import DBF
 from pyreaddbc import dbc2dbf
 
-from pipeline.config import (CODIGOS_UF, FTP_HOST, FTP_PASTA_SIH, PASTA_BRUTOS,
-                             URL_CID10, URL_COORDENADAS, URL_IBGE, URL_MALHA)
+from pipeline.config import (
+    CODIGOS_UF,
+    FTP_HOST,
+    FTP_PASTA_SIH,
+    PASTA_BRUTOS,
+    URL_CID10,
+    URL_IBGE,
+    URL_MALHA,
+    URL_POPULACAO,
+)
 
 # Só as colunas que o projeto usa (o arquivo RD tem mais de 100)
 COLUNAS = [
     "ANO_CMPT", "MES_CMPT", "IDENT", "MUNIC_MOV", "SEXO", "RACA_COR",
     "COD_IDADE", "IDADE", "DIAG_PRINC", "PROC_REA", "DIAS_PERM",
-    "MORTE", "VAL_TOT",
+    "MORTE", "VAL_TOT", "MUNIC_RES",
 ]
 
 
@@ -77,29 +85,27 @@ def ler_dbc(caminho: Path):
 
 
 def baixar_municipios(ufs):
+    """Nome e região de cada município (API de localidades do IBGE).
+
+    A região é a "região geográfica intermediária" do IBGE: em SC, por exemplo,
+    Florianópolis, Joinville, Blumenau, Chapecó, Criciúma, Lages e Caçador.
+    """
     linhas = []
     for uf in ufs:
         resposta = requests.get(URL_IBGE.format(uf=uf), timeout=60)
         resposta.raise_for_status()
 
         for m in resposta.json():
+            imediata = m.get("regiao-imediata") or {}
+            intermediaria = imediata.get("regiao-intermediaria") or {}
             linhas.append({
                 # IBGE usa 7 dígitos; o SIH usa 6 (sem o dígito verificador)
                 "cod_municipio": str(m["id"])[:6],
                 "municipio": m["nome"],
                 "uf": uf,
+                "regiao": intermediaria.get("nome", "Sem região"),
             })
-    municipios = pd.DataFrame(linhas)
-
-    try:
-        coords = pd.read_csv(URL_COORDENADAS, usecols=["codigo_ibge", "latitude", "longitude"])
-        coords["cod_municipio"] = coords["codigo_ibge"].astype(str).str[:6]
-        municipios = municipios.merge(coords[["cod_municipio", "latitude", "longitude"]],
-                                      on="cod_municipio", how="left")
-    except Exception as erro:  # o mapa é opcional; sem coordenadas o resto funciona
-        print(f"  Aviso: não consegui baixar as coordenadas ({erro})")
-
-    return municipios
+    return pd.DataFrame(linhas)
 
 
 def baixar_cid10():
@@ -116,24 +122,36 @@ def baixar_cid10():
     return cid[["cid", "descricao"]]
 
 
-def baixar_contornos(ufs):
-    """Contorno de cada estado como uma lista de pontos (lon, lat).
+def baixar_malha(ufs):
+    """Contorno de todos os municípios, num GeoJSON só.
 
-    Cada polígono vira um 'trecho'; o mapa desenha um trecho por vez.
+    O id de cada município vira o código de 6 dígitos usado no SIH.
     """
-    linhas = []
+    municipios = []
     for uf in ufs:
-        resposta = requests.get(URL_MALHA.format(codigo=CODIGOS_UF[uf]), timeout=60)
+        resposta = requests.get(URL_MALHA.format(codigo=CODIGOS_UF[uf]), timeout=120)
         resposta.raise_for_status()
 
         for feature in resposta.json()["features"]:
-            geometria = feature["geometry"]
-            poligonos = geometria["coordinates"]
-            if geometria["type"] == "Polygon":
-                poligonos = [poligonos]
+            codigo = str(feature["properties"]["codarea"])[:6]
+            municipios.append({
+                "type": "Feature",
+                "id": codigo,
+                "properties": {"uf": uf},
+                "geometry": feature["geometry"],
+            })
 
-            for i, poligono in enumerate(poligonos):
-                for lon, lat in poligono[0]:  # só o contorno externo
-                    linhas.append({"uf": uf, "trecho": f"{uf}-{i}", "lon": lon, "lat": lat})
+    return {"type": "FeatureCollection", "features": municipios}
 
-    return pd.DataFrame(linhas)
+
+def baixar_populacao(ufs):
+    """População de cada município no Censo 2022."""
+    codigos = ",".join(str(CODIGOS_UF[uf]) for uf in ufs)
+    resposta = requests.get(URL_POPULACAO.format(codigos=codigos), timeout=120)
+    resposta.raise_for_status()
+
+    series = resposta.json()[0]["resultados"][0]["series"]
+    return pd.DataFrame([
+        {"cod_municipio": item["localidade"]["id"][:6], "populacao": int(item["serie"]["2022"])}
+        for item in series
+    ])

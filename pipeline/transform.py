@@ -49,6 +49,9 @@ AGRUPAMENTOS = {
     "municipio": ["cod_municipio", "capitulo_cid", "tipo_procedimento"],
     "perfil": ["capitulo_cid", "tipo_procedimento", "sexo", "faixa_etaria", "raca"],
     "cid": ["cid", "capitulo_cid", "tipo_procedimento"],
+    "mes": ["mes", "capitulo_cid", "tipo_procedimento"],
+    # Onde o paciente mora x onde foi internado
+    "fluxo": ["cod_residencia", "cod_municipio"],
 }
 
 
@@ -83,8 +86,11 @@ def faixa_etaria(anos):
     return "Não informado"
 
 
-def preparar(df):
-    """Limpa o arquivo bruto do SIH e cria as colunas usadas no painel."""
+def preparar(df, mes):
+    """Limpa o arquivo bruto do SIH e cria as colunas usadas no painel.
+
+    `mes` vem do nome do arquivo (RDSC2503 -> 3), que é o mês usado no controle.
+    """
     df = df.copy()
 
     # IDENT 1 = AIH principal. As de continuação (5) contariam a mesma
@@ -99,7 +105,9 @@ def preparar(df):
     df["dias_internado"] = df["DIAS_PERM"]
     df["valor_total"] = pd.to_numeric(df["VAL_TOT"], errors="coerce").fillna(0.0)
 
+    df["mes"] = mes
     df["cod_municipio"] = df["MUNIC_MOV"].astype(str).str.strip().str[:6]
+    df["cod_residencia"] = df["MUNIC_RES"].astype(str).str.strip().str[:6]
     df["cid"] = df["DIAG_PRINC"].astype(str).str.strip().str.upper().str[:3]
     df["capitulo_cid"] = df["cid"].map(capitulo_cid)
     df["tipo_procedimento"] = df["PROC_REA"].map(tipo_procedimento)

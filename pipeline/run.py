@@ -13,16 +13,19 @@ import argparse
 import ftplib
 from datetime import date
 
+import pandas as pd
+
 from pipeline import extract, load, transform
-from pipeline.config import ANO_INICIAL, ARQ_CID10, ARQ_CONTORNOS, ARQ_MUNICIPIOS, UFS
+from pipeline.config import ANO_INICIAL, ARQ_CID10, ARQ_MALHA, ARQ_MUNICIPIOS, ARQ_POPULACAO, TABELAS, UFS
 
 
 def processar_ano(uf, ano, arquivos):
+    """arquivos: {mês: nome do arquivo no FTP}"""
     resumos = {nome: [] for nome in transform.AGRUPAMENTOS}
     total = 0
 
-    for arquivo in arquivos:
-        df = transform.preparar(extract.ler_dbc(extract.baixar_arquivo(arquivo)))
+    for mes, arquivo in arquivos.items():
+        df = transform.preparar(extract.ler_dbc(extract.baixar_arquivo(arquivo)), mes)
         total += len(df)
 
         for nome in resumos:
@@ -33,11 +36,12 @@ def processar_ano(uf, ano, arquivos):
 
 
 def baixar_tabelas_de_apoio():
-    if not ARQ_MUNICIPIOS.exists():
+    # Refaz a lista se ela for de uma versão antiga, ainda sem a região
+    if not ARQ_MUNICIPIOS.exists() or "regiao" not in pd.read_parquet(ARQ_MUNICIPIOS).columns:
         print("Baixando municípios (IBGE)...")
         load.salvar_tabela(extract.baixar_municipios(UFS), ARQ_MUNICIPIOS)
 
-    # As duas abaixo são opcionais: se falharem, o painel funciona sem elas
+    # As de baixo são opcionais: se falharem, o painel funciona sem elas
     if not ARQ_CID10.exists():
         print("Baixando tabela CID-10 (DATASUS)...")
         try:
@@ -45,12 +49,19 @@ def baixar_tabelas_de_apoio():
         except Exception as erro:
             print(f"  Aviso: não consegui baixar a CID-10 ({erro})")
 
-    if not ARQ_CONTORNOS.exists():
-        print("Baixando contorno dos estados (IBGE)...")
+    if not ARQ_MALHA.exists():
+        print("Baixando contorno dos municípios (IBGE)...")
         try:
-            load.salvar_tabela(extract.baixar_contornos(UFS), ARQ_CONTORNOS)
+            load.salvar_json(extract.baixar_malha(UFS), ARQ_MALHA)
         except Exception as erro:
-            print(f"  Aviso: não consegui baixar os contornos ({erro})")
+            print(f"  Aviso: não consegui baixar o mapa ({erro})")
+
+    if not ARQ_POPULACAO.exists():
+        print("Baixando população do Censo 2022 (IBGE)...")
+        try:
+            load.salvar_tabela(extract.baixar_populacao(UFS), ARQ_POPULACAO)
+        except Exception as erro:
+            print(f"  Aviso: não consegui baixar a população ({erro})")
 
 
 def main():
@@ -64,7 +75,9 @@ def main():
 
     print("Consultando arquivos no FTP do DATASUS...")
     disponiveis = extract.listar_arquivos_disponiveis()
-    salvos = load.meses_salvos()
+    # Se faltar alguma tabela (ex.: uma tabela nova no projeto), refaz tudo.
+    # Os .dbc já baixados ficam em data/brutos, então é rápido.
+    salvos = load.meses_salvos() if all(a.exists() for a in TABELAS.values()) else {}
 
     for uf in ufs:
         for ano in range(args.ano_inicial, date.today().year + 1):
@@ -74,7 +87,7 @@ def main():
             if not meses or salvos.get((uf, ano)) == len(meses):
                 continue
 
-            arquivos = [disponiveis[extract.nome_arquivo(uf, ano, m)] for m in meses]
+            arquivos = {m: disponiveis[extract.nome_arquivo(uf, ano, m)] for m in meses}
             print(f"{uf} {ano}: {len(meses)} mês(es)...")
 
             try:

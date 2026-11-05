@@ -1,3 +1,6 @@
+"""Leitura das tabelas do pipeline e recorte pelos filtros do painel."""
+
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -5,141 +8,139 @@ import streamlit as st
 
 PASTA = Path(__file__).resolve().parent.parent / "data" / "processados"
 
-METRICAS = ["internacoes", "obitos", "valor_total", "dias_internado"]
+TABELAS = ["municipio", "perfil", "cid", "mes", "fluxo"]
 
-# Ícone de cada sistema do corpo (capítulo da CID-10)
-ICONES_SISTEMA = {
-    "Circulatório": "🫀", "Digestivo": "🍽️", "Respiratório": "🫁",
-    "Geniturinário": "🫘", "Músculo/Osso": "🦴", "Neoplasias": "🎗️",
-    "Saúde Mental": "💭", "Sistema Nervoso": "🧠", "Gravidez e Parto": "🤰",
-    "Lesões": "🩹", "Infecciosas": "🦠", "Olhos": "👁️", "Ouvido": "👂",
-    "Pele/Tecido": "✋", "Endócrinas": "🧪", "Sangue": "🩸", "Perinatal": "👶",
-    "Malformações": "🧬", "Sintomas": "🌡️", "COVID e especiais": "😷",
-    "Causas Externas": "🚑", "Outros Contatos": "📋", "Não informado": "❔",
+# Filtros que só existem numa tabela (os demais existem em todas)
+TABELA_DO_FILTRO = {
+    "cod_municipio": "municipio",
+    "cid": "cid",
+    "sexo": "perfil",
+    "faixa_etaria": "perfil",
+    "raca": "perfil",
 }
-
-# Os que aparecem como botão no topo do painel
-SISTEMAS_BOTOES = [
-    "Circulatório", "Digestivo", "Respiratório", "Geniturinário", "Músculo/Osso",
-    "Neoplasias", "Gravidez e Parto", "Lesões", "Saúde Mental", "Sistema Nervoso",
-    "Infecciosas", "Olhos",
-]
 
 
 @st.cache_data
 def carregar():
     """Lê as tabelas geradas pelo pipeline. O painel nunca busca dado no DATASUS."""
-    tabelas = {
-        nome: pd.read_parquet(PASTA / f"por_{nome}.parquet")
-        for nome in ["municipio", "perfil", "cid"]
-    }
+    tabelas = {nome: pd.read_parquet(PASTA / f"por_{nome}.parquet") for nome in TABELAS}
 
-    municipios = pd.read_parquet(PASTA / "municipios.parquet")
-    tabelas["municipio"] = tabelas["municipio"].merge(
-        municipios.drop(columns="uf"), on="cod_municipio", how="left"
-    )
-    tabelas["municipio"]["municipio"] = tabelas["municipio"]["municipio"].fillna("Não identificado")
+    nomes = pd.read_parquet(PASTA / "municipios.parquet")[["cod_municipio", "municipio"]]
+    tabelas["municipio"] = _com_nome(tabelas["municipio"], nomes, "cod_municipio", "municipio")
+    tabelas["fluxo"] = _com_nome(tabelas["fluxo"], nomes, "cod_municipio", "municipio")
+    tabelas["fluxo"] = _com_nome(tabelas["fluxo"], nomes, "cod_residencia", "residencia")
 
-    arq_cid = PASTA / "cid10.parquet"
-    if arq_cid.exists():
-        tabelas["cid"] = tabelas["cid"].merge(pd.read_parquet(arq_cid), on="cid", how="left")
-    if "descricao" not in tabelas["cid"]:
-        tabelas["cid"]["descricao"] = None
-    tabelas["cid"]["descricao"] = tabelas["cid"]["descricao"].fillna("—")
+    tabelas["cid"] = _com_descricao_cid(tabelas["cid"])
+    tabelas["populacao"] = _ler_opcional("populacao.parquet")
 
-    # Fundo do mapa: todos os municípios (pontinhos cinza) e o contorno dos estados
-    tabelas["fundo"] = municipios.dropna(subset=["latitude", "longitude"]) if "latitude" in municipios else None
-    arq_contornos = PASTA / "contornos.parquet"
-    tabelas["contornos"] = pd.read_parquet(arq_contornos) if arq_contornos.exists() else None
+    arq_malha = PASTA / "municipios.geojson"
+    tabelas["malha"] = None
+    if arq_malha.exists():
+        tabelas["malha"] = preparar_malha(json.loads(arq_malha.read_text(encoding="utf-8")))
 
     controle = pd.read_parquet(PASTA / "controle.parquet")
     return tabelas, controle
 
 
-def filtrar(df, **filtros):
-    """Aplica só os filtros que existem na tabela e que não estão em 'Todos'."""
-    for coluna, valor in filtros.items():
-        if valor in (None, "Todos") or coluna not in df.columns:
-            continue
-        df = df[df[coluna].isin(valor) if isinstance(valor, list) else df[coluna] == valor]
+def _ler_opcional(arquivo):
+    caminho = PASTA / arquivo
+    return pd.read_parquet(caminho) if caminho.exists() else None
+
+
+def _com_nome(df, nomes, coluna_codigo, coluna_nome):
+    nomes = nomes.rename(columns={"cod_municipio": coluna_codigo, "municipio": coluna_nome})
+    df = df.merge(nomes, on=coluna_codigo, how="left")
+    # Quem mora fora do PR, SC e RS não está na lista de municípios
+    df[coluna_nome] = df[coluna_nome].fillna("Fora da Região Sul / não informado")
     return df
 
 
-# ── Medidas (o seletor da direita) ───────────────────────────
-# nome: (numerador, denominador, como formatar)
-MEDIDAS = {
-    "Internações": ("internacoes", None, "numero"),
-    "Dias": ("dias_internado", None, "numero"),
-    "Dias por Internação": ("dias_internado", "internacoes", "decimal"),
-    "Óbitos": ("obitos", None, "numero"),
-    "Porcentagem de Óbitos": ("obitos", "internacoes", "porcentagem"),
-    "Valor AIH": ("valor_total", None, "reais"),
-    "Valor Médio AIH": ("valor_total", "internacoes", "reais"),
-}
-
-ICONES_MEDIDA = {
-    "Internações": "🛏️", "Dias": "📅", "Dias por Internação": "⏳", "Óbitos": "🕊️",
-    "Porcentagem de Óbitos": "📉", "Valor AIH": "💵", "Valor Médio AIH": "🧾",
-}
-
-# Em medidas de razão, município com poucas internações distorce o ranking
-MINIMO_PARA_RAZAO = 50
+def _com_descricao_cid(cid):
+    descricoes = _ler_opcional("cid10.parquet")
+    if descricoes is not None:
+        cid = cid.merge(descricoes, on="cid", how="left")
+    if "descricao" not in cid:
+        cid["descricao"] = None
+    cid["descricao"] = cid["descricao"].fillna("—")
+    return cid
 
 
-def eh_razao(medida):
-    return MEDIDAS[medida][1] is not None
+def _area_com_sinal(anel):
+    """Positiva quando os pontos giram no sentido anti-horário (fórmula do laço)."""
+    return sum(x1 * y2 - x2 * y1 for (x1, y1), (x2, y2) in zip(anel, anel[1:])) / 2
 
 
-def calcular(df, por, medida):
-    """Agrupa por 'por' e devolve a coluna 'valor' com a medida escolhida."""
-    numerador, denominador, formato = MEDIDAS[medida]
-    grupo = df.groupby(por, observed=True)[METRICAS].sum().reset_index()
+def _no_sentido_do_plotly(poligono):
+    """O mapa do Plotly (d3) espera a borda externa no sentido horário e os buracos ao contrário.
 
-    if denominador:
-        grupo = grupo[grupo[denominador] > 0]
-        grupo["valor"] = grupo[numerador] / grupo[denominador]
-        if formato == "porcentagem":
-            grupo["valor"] *= 100
-    else:
-        grupo["valor"] = grupo[numerador]
-
-    return grupo.sort_values("valor", ascending=False)
+    Sem isso, um polígono no sentido "errado" vira "o mundo inteiro menos o município".
+    """
+    borda, *buracos = poligono
+    if _area_com_sinal(borda) > 0:
+        borda = borda[::-1]
+    buracos = [b[::-1] if _area_com_sinal(b) < 0 else b for b in buracos]
+    return [borda, *buracos]
 
 
-def total(df, medida):
-    numerador, denominador, formato = MEDIDAS[medida]
-    soma = df[METRICAS].sum()
+def preparar_malha(geojson):
+    """Transforma o GeoJSON do IBGE no que o mapa usa (além do próprio GeoJSON):
 
-    if not denominador:
-        return soma[numerador]
-    if soma[denominador] == 0:
-        return 0
-    valor = soma[numerador] / soma[denominador]
-    return valor * 100 if formato == "porcentagem" else valor
+    - centros: um ponto (lon, lat) por município, onde fica a bolha
+    - contornos: as divisas de cada estado como uma lista de pontos,
+      com None separando um município do outro (o Plotly desenha tudo num traço só)
+    """
+    centros = []
+    contornos = {}
+
+    for municipio in geojson["features"]:
+        uf = municipio["properties"]["uf"]
+        geometria = municipio["geometry"]
+        poligonos = geometria["coordinates"]
+        if geometria["type"] == "Polygon":
+            poligonos = [poligonos]
+
+        poligonos = [_no_sentido_do_plotly(p) for p in poligonos]
+        municipio["geometry"] = {"type": "MultiPolygon", "coordinates": poligonos}
+
+        xs, ys = contornos.setdefault(uf, ([], []))
+        for poligono in poligonos:
+            borda = poligono[0]
+            xs.extend([p[0] for p in borda] + [None])
+            ys.extend([p[1] for p in borda] + [None])
+
+        # Centro do maior pedaço do município (média dos pontos da borda)
+        maior = max(poligonos, key=lambda p: len(p[0]))[0]
+        centros.append({
+            "cod_municipio": municipio["id"],
+            "lon": sum(p[0] for p in maior) / len(maior),
+            "lat": sum(p[1] for p in maior) / len(maior),
+        })
+
+    return {"centros": pd.DataFrame(centros), "contornos": contornos, "geojson": geojson}
 
 
-# ── Formatação no padrão brasileiro ──────────────────────────
+def recorte(tabelas, nome, filtros, ignorar=()):
+    """Aplica na tabela `nome` os filtros que ela tem.
 
-def numero(valor):
-    return f"{valor:,.0f}".replace(",", ".")
-
-
-def decimal(valor):
-    return f"{valor:.1f}".replace(".", ",")
-
-
-def porcentagem(valor):
-    return f"{valor:.2f}%".replace(".", ",")
-
-
-def reais(valor):
-    if valor >= 1e9:
-        return f"R$ {valor / 1e9:.2f} bi".replace(".", ",")
-    if valor >= 1e6:
-        return f"R$ {valor / 1e6:.1f} mi".replace(".", ",")
-    return "R$ " + numero(valor)
+    `ignorar` serve para o gráfico de uma dimensão mostrar todos os itens
+    dela (e só destacar o escolhido), como no Power BI.
+    """
+    df = tabelas[nome]
+    for coluna, valor in filtros.items():
+        if coluna in ignorar or coluna not in df.columns or valor in (None, "Todos"):
+            continue
+        df = df[df[coluna].isin(valor)] if isinstance(valor, list) else df[df[coluna] == valor]
+    return df
 
 
-def formatar(valor, medida):
-    funcoes = {"numero": numero, "decimal": decimal, "porcentagem": porcentagem, "reais": reais}
-    return funcoes[MEDIDAS[medida][2]](valor)
+def tabela_principal(filtros):
+    """Tabela que responde pelos números do topo, conforme o filtro de foco escolhido."""
+    for coluna, nome in TABELA_DO_FILTRO.items():
+        if filtros.get(coluna):
+            return nome
+    return "municipio"
+
+
+def filtros_fora(nome, filtros):
+    """Filtros escolhidos que a tabela `nome` não consegue aplicar."""
+    return [c for c, t in TABELA_DO_FILTRO.items() if filtros.get(c) and t != nome]

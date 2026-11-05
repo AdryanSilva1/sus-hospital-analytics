@@ -1,3 +1,4 @@
+import json
 from datetime import date
 
 import pandas as pd
@@ -47,3 +48,8 @@ def salvar_ano(resumos, uf, ano, meses, ultimo_mes):
 
 def salvar_tabela(df, arquivo):
     _salvar(df, arquivo)
+
+
+def salvar_json(dados, arquivo):
+    PASTA_PROCESSADOS.mkdir(parents=True, exist_ok=True)
+    arquivo.write_text(json.dumps(dados), encoding="utf-8")

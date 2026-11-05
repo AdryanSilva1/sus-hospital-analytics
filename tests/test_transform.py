@@ -19,6 +19,7 @@ def arquivo_falso():
         "DIAS_PERM":  ["5", "2", "4", "10"],
         "MORTE":      ["1", "0", "0", "0"],
         "VAL_TOT":    ["1500.50", "600.00", "350.25", "800.00"],
+        "MUNIC_RES":  ["420540", "421660", "420910", "420540"],
     })
 
 
@@ -42,7 +43,7 @@ def test_faixa_etaria():
 
 
 def test_preparar():
-    df = transform.preparar(arquivo_falso())
+    df = transform.preparar(arquivo_falso(), mes=3)
 
     assert len(df) == 3  # a AIH de continuação (IDENT 5) sai
     assert list(df["raca"]) == ["Branca", "Parda", "Sem informação"]
@@ -50,7 +51,7 @@ def test_preparar():
 
 
 def test_juntar_meses_soma_os_meses():
-    df = transform.preparar(arquivo_falso())
+    df = transform.preparar(arquivo_falso(), mes=3)
     marco = transform.resumir(df, "municipio")
     abril = transform.resumir(df, "municipio")
 
@@ -61,3 +62,16 @@ def test_juntar_meses_soma_os_meses():
     assert florianopolis["obitos"].sum() == 2
     assert round(florianopolis["valor_total"].sum(), 2) == 4201.00
     assert set(anual["uf"]) == {"SC"} and set(anual["ano"]) == {2024}
+
+
+def test_fluxo_separa_quem_mora_em_outra_cidade():
+    df = transform.preparar(arquivo_falso(), mes=3)
+    fluxo = transform.resumir(df, "fluxo")
+
+    de_fora = fluxo[fluxo["cod_residencia"] != fluxo["cod_municipio"]]
+    assert de_fora["internacoes"].sum() == 1  # mora em 421660 e foi internado em 420540
+
+
+def test_tabela_por_mes_usa_o_mes_do_arquivo():
+    df = transform.preparar(arquivo_falso(), mes=3)
+    assert set(transform.resumir(df, "mes")["mes"]) == {3}

@@ -1,0 +1,26 @@
+name: Testes
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependências
+        run: pip install -r requirements-pipeline.txt
+
+      - name: Estilo do código (ruff)
+        run: ruff check .
+
+      - name: Testes (pipeline e painel com dados falsos)
+        run: pytest -q

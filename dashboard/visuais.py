@@ -1,137 +1,250 @@
-import html
+"""Figuras Plotly do painel. Nenhuma função aqui lê dados ou mexe em filtro."""
 
-import plotly.express as px
 import plotly.graph_objects as go
 
-from dashboard.dados import ICONES_SISTEMA, formatar
+from dashboard.medidas import formatar
 
 # Uma cor por estado, igual em todos os visuais
-CORES_UF = {"PR": "#3A9BBF", "SC": "#F06B5B", "RS": "#F2C14E"}
+CORES_UF = {"PR": "#2E86AB", "SC": "#E4572E", "RS": "#F3A712"}
+AZUL = "#1F4E79"
+AZUL_CLARO = "#9DBBD6"
+CINZA = "#D5DBE3"
 
 CONFIG = {"displayModeBar": False}
 
 _BASE = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Segoe UI, Inter, sans-serif", color="#3B3B3B", size=13),
+    font=dict(family="Segoe UI, Inter, sans-serif", color="#2B2B2B", size=13),
     separators=",.",
-    hoverlabel=dict(bgcolor="#FFFFFF", bordercolor="#D0D7E2", font_size=13),
-    margin=dict(l=0, r=0, t=0, b=0),
+    hoverlabel=dict(bgcolor="#FFFFFF", bordercolor="#C9D1DB", font_size=13),
+    margin=dict(l=0, r=0, t=4, b=0),
     showlegend=False,
+    clickmode="event+select",
+    dragmode=False,
 )
 
+# Sem isso o Plotly apaga as barras que não foram clicadas
+_SEM_APAGAR = dict(selected=dict(marker=dict(opacity=1)), unselected=dict(marker=dict(opacity=1)))
 
-def barras(dados, rotulo, medida, altura=None):
-    """Barras horizontais com o valor na ponta, coloridas pelo estado."""
-    dados = dados.copy()
-    dados["texto"] = dados["valor"].map(lambda v: formatar(v, medida))
+_DICA_CLIQUE = "<span style='color:#888'>clique para filtrar</span>"
 
-    fig = px.bar(
-        dados, x="valor", y=rotulo, orientation="h", text="texto",
-        color="uf", color_discrete_map=CORES_UF,
-    )
-    fig.update_traces(
-        textposition="outside", cliponaxis=False, width=0.72,
-        hovertemplate="<b>%{y}</b><br>%{text}<extra></extra>",
-    )
+
+def _texto(valores, medida, formatador):
+    formatador = formatador or (lambda v: formatar(v, medida))
+    return [formatador(v) for v in valores]
+
+
+def _cores(dados, chave, selecionado, cor):
+    cores = [CORES_UF.get(u, AZUL) for u in dados["uf"]] if cor == "uf" else [cor] * len(dados)
+    if selecionado is None:
+        return cores
+    return [c if k == selecionado else CINZA for c, k in zip(cores, dados[chave])]
+
+
+def barras(dados, rotulo, medida, chave, selecionado=None, cor=AZUL, altura=None,
+           ordenar=True, formatador=None, clicavel=True):
+    """Barras horizontais. `chave` é a coluna enviada para o filtro no clique."""
+    if ordenar:
+        dados = dados.sort_values("valor", ascending=False)
+
+    fig = go.Figure(go.Bar(
+        x=dados["valor"], y=dados[rotulo], orientation="h",
+        text=_texto(dados["valor"], medida, formatador),
+        textposition="outside", cliponaxis=False,
+        marker=dict(color=_cores(dados, chave, selecionado, cor)),
+        customdata=[[k] for k in dados[chave]],
+        hovertemplate="<b>%{y}</b><br>" + medida + ": %{text}"
+                      + ("<br>" + _DICA_CLIQUE if clicavel else "") + "<extra></extra>",
+        **_SEM_APAGAR,
+    ))
+    maior = dados["valor"].max() if len(dados) else 1
     fig.update_layout(
         **_BASE,
-        height=altura or max(160, 30 * len(dados)),
-        xaxis=dict(visible=False, range=[0, dados["valor"].max() * 1.28]),
-        yaxis=dict(title="", autorange="reversed", categoryorder="array",
-                   categoryarray=list(dados[rotulo]), tickfont=dict(size=13)),
-        bargap=0.25,
+        height=altura or max(140, 28 * len(dados) + 10),
+        xaxis=dict(visible=False, range=[0, maior * 1.3], fixedrange=True),
+        yaxis=dict(title="", autorange="reversed", fixedrange=True,
+                   categoryorder="array", categoryarray=list(dados[rotulo])),
+        bargap=0.28,
     )
     return fig
 
 
-def mapa(dados, medida, fundo=None, contornos=None, ufs=("PR", "SC", "RS")):
-    """Mapa em bolhas desenhado com eixos de latitude/longitude.
+def colunas(dados, rotulo, medida, cor=AZUL, altura=200):
+    """Barras verticais simples (ex.: gasto por ano)."""
+    fig = go.Figure(go.Bar(
+        x=dados[rotulo].astype(str), y=dados["valor"], text=_texto(dados["valor"], medida, None),
+        textposition="outside", cliponaxis=False, marker_color=cor,
+        hovertemplate="<b>%{x}</b><br>%{text}<extra></extra>",
+    ))
+    fig.update_layout(
+        **_BASE, height=altura,
+        xaxis=dict(title="", type="category", fixedrange=True),
+        yaxis=dict(visible=False, range=[0, dados["valor"].max() * 1.2], fixedrange=True),
+    )
+    return fig
 
-    Não depende de serviço de mapas externo: o fundo são os contornos dos
-    estados (IBGE) e um pontinho cinza para cada município.
-    """
+
+def linha_mensal(atual, anterior, medida, ano, meses):
+    """Evolução mês a mês do ano escolhido, com o ano anterior pontilhado atrás."""
     fig = go.Figure()
-
-    if contornos is not None:
-        for _, trecho in contornos[contornos["uf"].isin(ufs)].groupby("trecho"):
-            fig.add_trace(go.Scatter(
-                x=trecho["lon"], y=trecho["lat"], mode="lines", fill="toself",
-                fillcolor="#F4F6F9", line=dict(color="#B8C2CE", width=1), hoverinfo="skip",
-            ))
-
-    if fundo is not None:
-        pontos = fundo[fundo["uf"].isin(ufs)]
+    for dados, nome, cor, traco in [(anterior, ano - 1, AZUL_CLARO, "dot"), (atual, ano, AZUL, "solid")]:
+        if dados is None or dados.empty:
+            continue
+        dados = dados.sort_values("mes")
         fig.add_trace(go.Scatter(
-            x=pontos["longitude"], y=pontos["latitude"], mode="markers",
-            marker=dict(size=3, color="#C9D1DB"), hoverinfo="skip",
-        ))
-
-    dados = dados.dropna(subset=["latitude", "longitude"])
-    dados = dados[dados["valor"] > 0].sort_values("valor", ascending=False)
-    tamanho = 5 + 26 * (dados["valor"] / dados["valor"].max()) ** 0.5 if len(dados) else []
-
-    for uf, grupo in dados.groupby("uf"):
-        fig.add_trace(go.Scatter(
-            x=grupo["longitude"], y=grupo["latitude"], mode="markers",
-            marker=dict(size=tamanho[grupo.index], color=CORES_UF[uf], opacity=0.8,
-                        line=dict(color="#FFFFFF", width=0.8)),
-            text=grupo["municipio"],
-            customdata=[formatar(v, medida) for v in grupo["valor"]],
-            hovertemplate="<b>%{text}</b><br>%{customdata}<extra></extra>",
+            x=[meses[m - 1] for m in dados["mes"]], y=dados["valor"], name=str(nome),
+            mode="lines+markers", line=dict(color=cor, width=3, dash=traco), marker=dict(size=7),
+            text=_texto(dados["valor"], medida, None),
+            hovertemplate=f"<b>%{{x}}/{nome}</b><br>{medida}: %{{text}}<extra></extra>",
         ))
 
     fig.update_layout(
-        **_BASE, height=470,
-        xaxis=dict(visible=False),
-        # 1 grau de longitude vale menos que 1 de latitude nessa região (~cos 27°)
-        yaxis=dict(visible=False, scaleanchor="x", scaleratio=1 / 0.89),
+        **{**_BASE, "showlegend": True}, height=260, hovermode="x unified",
+        legend=dict(orientation="h", y=1.12, x=0),
+        xaxis=dict(title="", categoryorder="array", categoryarray=meses, fixedrange=True),
+        yaxis=dict(title="", gridcolor="#EEF1F5", fixedrange=True, rangemode="tozero",
+                   tickformat=",.0f"),
     )
     return fig
 
 
-def tabela(linhas, colunas, medida, destaque=None, total=None):
-    """Tabela HTML no estilo do Power BI: cabeçalho escuro e barra de dados na última coluna.
+# ── Mapa ─────────────────────────────────────────────────────
 
-    linhas: lista de dicts com as chaves de 'colunas' + 'valor'
-    colunas: lista de (chave, título, classe css)
+# Enquadramento de cada recorte: (lon mín, lon máx, lat mín, lat máx)
+VISTAS = {
+    "Sul": (-58.0, -47.8, -34.0, -22.4),
+    "PR": (-54.8, -47.9, -26.8, -22.4),
+    "SC": (-54.0, -48.2, -29.5, -25.8),
+    "RS": (-57.8, -49.5, -33.9, -26.9),
+}
+
+
+def _bolhas(dados, medida, malha, selecionado, formatador):
+    """Uma lista de traços de bolhas (um por estado), servindo aos dois tipos de mapa."""
+    dados = dados.merge(malha["centros"], on="cod_municipio")
+    dados = dados[dados["valor"] > 0].sort_values("valor", ascending=False)
+    maior = dados["valor"].max() if len(dados) else 1
+
+    camadas = []
+    for uf, grupo in dados.groupby("uf"):
+        escolhido = grupo["cod_municipio"] == selecionado
+        camadas.append(dict(
+            uf=uf, lon=grupo["lon"], lat=grupo["lat"],
+            tamanho=5 + 30 * (grupo["valor"] / maior) ** 0.5,
+            opacidade=[0.9 if e or selecionado is None else 0.25 for e in escolhido],
+            escolhido=escolhido,
+            customdata=[
+                [c, n, v, formatar(i, "Internações"), formatar(o, "Óbitos"), formatar(r, "Valor AIH")]
+                for c, n, v, i, o, r in zip(
+                    grupo["cod_municipio"], grupo["municipio"],
+                    _texto(grupo["valor"], medida, formatador),
+                    grupo["internacoes"], grupo["obitos"], grupo["valor_total"])
+            ],
+            hover=(
+                "<b>%{customdata[1]}</b> (" + uf + ")<br>"
+                "<b>" + medida + ": %{customdata[2]}</b><br>"
+                "Internações: %{customdata[3]}<br>"
+                "Óbitos: %{customdata[4]}<br>"
+                "Valor pago: %{customdata[5]}<br>" + _DICA_CLIQUE + "<extra></extra>"
+            ),
+        ))
+    return camadas
+
+
+# Do azul bem claro ao azul escuro do painel
+ESCALA = [[0, "#E3EEF8"], [0.35, "#8DBFE3"], [0.7, "#3A86C4"], [1, "#123A63"]]
+
+
+def mapa_pintado(dados, medida, malha, vista, selecionado=None, formatador=None):
+    """Cada município pintado do claro ao escuro pela medida, com as divisas do IBGE.
+
+    Zoom com a rodinha, arrastar e clicar num município para filtrar.
     """
-    maior = max((l["valor"] for l in linhas), default=0) or 1
+    ufs = ["PR", "SC", "RS"] if vista == "Sul" else [vista]
+    geo = {"type": "FeatureCollection",
+           "features": [m for m in malha["geojson"]["features"] if m["properties"]["uf"] in ufs]}
+    todos = [m["id"] for m in geo["features"]]
+    contorno = dict(line=dict(color="#FFFFFF", width=0.4))
 
-    cabecalho = "".join(f'<th class="{c}">{html.escape(t)}</th>' for _, t, c in colunas)
-    cabecalho += '<th class="num">Indicador</th>'
+    fig = go.Figure()
+    # Fundo: os municípios sem dado ficam cinza
+    fig.add_trace(go.Choropleth(
+        geojson=geo, locations=todos, z=[0] * len(todos), showscale=False,
+        colorscale=[[0, "#E9EDF2"], [1, "#E9EDF2"]], marker=contorno, hoverinfo="skip",
+    ))
 
-    corpo = []
-    for l in linhas:
-        classe = ' class="destaque"' if destaque and l.get("sistema") == destaque else ""
-        celulas = "".join(f'<td class="{c}">{html.escape(str(l[k]))}</td>' for k, _, c in colunas)
-        largura = l["valor"] / maior * 100
-        barra = (
-            f'<td class="num barra"><div style="width:{largura:.1f}%"></div>'
-            f'<span>{formatar(l["valor"], medida)}</span></td>'
+    dados = dados[dados["valor"] > 0]
+    fig.add_trace(go.Choropleth(
+        geojson=geo, locations=dados["cod_municipio"], z=dados["valor"],
+        colorscale=ESCALA, marker=contorno,
+        customdata=[[c, n, t] for c, n, t in zip(dados["cod_municipio"], dados["municipio"],
+                                                 _texto(dados["valor"], medida, formatador))],
+        hovertemplate="<b>%{customdata[1]}</b><br>" + medida + ": %{customdata[2]}<br>"
+                      + _DICA_CLIQUE + "<extra></extra>",
+        colorbar=dict(thickness=10, len=0.55, outlinewidth=0, title="", tickformat=",.0f"),
+        **_SEM_APAGAR,
+    ))
+
+    if selecionado in set(todos):
+        fig.add_trace(go.Choropleth(
+            geojson=geo, locations=[selecionado], z=[0], showscale=False,
+            colorscale=[[0, "rgba(0,0,0,0)"], [1, "rgba(0,0,0,0)"]],
+            marker=dict(line=dict(color="#E4572E", width=3)), hoverinfo="skip",
+        ))
+
+    fig.update_geos(fitbounds="locations", visible=False, projection_type="mercator",
+                    bgcolor="rgba(0,0,0,0)")
+    fig.update_layout(**{**_BASE, "dragmode": "pan"}, height=600)
+    return fig
+
+
+def mapa(dados, medida, malha, vista, selecionado=None, com_ruas=False, formatador=None):
+    """Bolhas por município. `dados` precisa de cod_municipio, municipio, uf e das métricas.
+
+    com_ruas=False: divisa dos municípios do IBGE desenhada em SVG (abre em qualquer navegador).
+    com_ruas=True: mapa de ruas (OpenStreetMap/CARTO) por baixo; precisa de internet e WebGL.
+    """
+    ufs = ["PR", "SC", "RS"] if vista == "Sul" else [vista]
+    camadas = _bolhas(dados, medida, malha, selecionado, formatador)
+    lon_min, lon_max, lat_min, lat_max = VISTAS[vista]
+    fig = go.Figure()
+
+    if com_ruas:
+        for c in camadas:
+            fig.add_trace(go.Scattermap(
+                lon=c["lon"], lat=c["lat"], mode="markers",
+                marker=dict(size=c["tamanho"], color=CORES_UF[c["uf"]], opacity=c["opacidade"]),
+                customdata=c["customdata"], hovertemplate=c["hover"],
+            ))
+        fig.update_layout(
+            **{**_BASE, "dragmode": "pan"}, height=600,
+            map=dict(style="carto-positron",
+                     bounds=dict(west=lon_min, east=lon_max, south=lat_min, north=lat_max)),
         )
-        corpo.append(f"<tr{classe}>{celulas}{barra}</tr>")
+        return fig
 
-    rodape = ""
-    if total is not None:
-        vazias = "".join("<td></td>" for _ in colunas[1:])
-        rodape = f'<tfoot><tr><td>Total</td>{vazias}<td class="num">{formatar(total, medida)}</td></tr></tfoot>'
+    for uf in ufs:
+        xs, ys = malha["contornos"].get(uf, ([], []))
+        fig.add_trace(go.Scatter(
+            x=xs, y=ys, mode="lines", line=dict(color="#C9D2DD", width=0.5), hoverinfo="skip",
+        ))
 
-    return (
-        f'<table class="tabela-pbi"><thead><tr>{cabecalho}</tr></thead>'
-        f'<tbody>{"".join(corpo)}</tbody>{rodape}</table>'
+    for c in camadas:
+        fig.add_trace(go.Scatter(
+            x=c["lon"], y=c["lat"], mode="markers",
+            marker=dict(
+                size=c["tamanho"], color=CORES_UF[c["uf"]], opacity=c["opacidade"],
+                line=dict(color=["#111" if e else "#FFF" for e in c["escolhido"]],
+                          width=[2.5 if e else 0.8 for e in c["escolhido"]]),
+            ),
+            customdata=c["customdata"], hovertemplate=c["hover"], **_SEM_APAGAR,
+        ))
+
+    fig.update_layout(
+        **{**_BASE, "dragmode": "pan"}, height=600,
+        xaxis=dict(visible=False, range=[lon_min, lon_max]),
+        # 1 grau de longitude vale menos que 1 de latitude nessa região (~cos 27°)
+        yaxis=dict(visible=False, range=[lat_min, lat_max], scaleanchor="x", scaleratio=1 / 0.89),
     )
-
-
-def linhas_sistema(dados):
-    return [
-        {"sistema": s, "icone": ICONES_SISTEMA.get(s, ""), "valor": v}
-        for s, v in zip(dados["capitulo_cid"], dados["valor"])
-    ]
-
-
-def linhas_cid(dados):
-    return [
-        {"cid": c, "descricao": d, "icone": ICONES_SISTEMA.get(s, ""), "valor": v}
-        for c, d, s, v in zip(dados["cid"], dados["descricao"], dados["capitulo_cid"], dados["valor"])
-    ]
+    return fig

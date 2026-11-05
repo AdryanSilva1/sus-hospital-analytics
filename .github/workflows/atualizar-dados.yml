@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: "0 12 15 * *"   # dia 15 de cada mês, 9h de Brasília
   workflow_dispatch:         # botão para rodar na mão
+    inputs:
+      ano_inicial:
+        description: "Primeiro ano a buscar"
+        default: "2019"
 
 permissions:
   contents: write
@@ -28,7 +32,7 @@ jobs:
         run: pytest -q
 
       - name: Rodar pipeline
-        run: python -m pipeline.run
+        run: python -m pipeline.run --ano-inicial ${{ inputs.ano_inicial || '2019' }}
 
       - name: Salvar dados novos
         run: |

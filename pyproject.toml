@@ -1,0 +1,19 @@
+[project]
+name = "sus-sul-analytics"
+version = "2.0.0"
+description = "Internações hospitalares do SUS na Região Sul: pipeline DATASUS + painel Streamlit"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+# erros, pyflakes, imports em ordem, nomes, simplificações e boas práticas
+select = ["E", "F", "W", "I", "N", "SIM", "B", "UP"]
+ignore = ["B905"]  # zip() sem strict= é intencional nas listas do mesmo DataFrame
