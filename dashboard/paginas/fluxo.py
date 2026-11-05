@@ -8,6 +8,7 @@ from dashboard.medidas import decimal, numero, por_100_mil, porcentagem
 
 UF_DO_CODIGO = {"41": "PR", "42": "SC", "43": "RS"}
 TAXA = "Internações por 100 mil hab."
+ALTURA_FAIXA = 560  # mapa e polos com a mesma altura
 MINIMO_HABITANTES = 5_000  # cidade muito pequena faz a taxa oscilar demais
 
 
@@ -94,15 +95,15 @@ def mostrar(painel):
 
     taxa = taxa_por_residencia(painel)
     esq, dir_ = st.columns([1.5, 1])
-    with esq, tile("fluxo-mapa"):
+    with esq, tile("fluxo-mapa", ALTURA_FAIXA):
         titulo(f"{TAXA} (pela cidade onde o paciente mora)",
                f"População do Censo 2022 (IBGE). Cidades com menos de "
                f"{numero(MINIMO_HABITANTES)} habitantes ficam de fora.")
         if taxa is not None and painel.tabelas["malha"] is not None:
             fig = visuais.mapa_pintado(taxa, TAXA, painel.tabelas["malha"], st.session_state.f_uf,
-                                       municipio, formatador=decimal)
+                                       municipio, formatador=decimal, altura=ALTURA_FAIXA - 90)
             grafico(fig, "fluxo-mapa", "cod_municipio", zoom=True)
-    with dir_, tile("fluxo-polos"):
+    with dir_, tile("fluxo-polos", ALTURA_FAIXA):
         titulo("Cidades que mais recebem pacientes de fora")
         grafico(visuais.barras(polos(fluxo), "municipio", "Internações", "cod_municipio",
                                municipio, cor="uf"), "fluxo-polos", "cod_municipio")
@@ -110,6 +111,6 @@ def mostrar(painel):
     if taxa is not None:
         with tile("fluxo-ranking"):
             titulo(f"Ranking: {TAXA}")
-            taxa = taxa.assign(populacao=taxa["populacao"].map(numero))
+            taxa = taxa.assign(populacao=taxa["populacao"].map(numero), valor=taxa["valor"].round())
             tabela(taxa, {"municipio": "Município", "uf": "UF", "populacao": "População"},
                    "fluxo-ranking", "cod_municipio", TAXA, altura=420)

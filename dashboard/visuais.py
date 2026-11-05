@@ -176,7 +176,7 @@ def _bolhas(dados, medida, malha, selecionado, formatador, cores):
 ESCALA = [[0, "#E3EEF8"], [0.35, "#8DBFE3"], [0.7, "#3A86C4"], [1, "#123A63"]]
 
 
-def mapa_pintado(dados, medida, malha, vista, selecionado=None, formatador=None):
+def mapa_pintado(dados, medida, malha, vista, selecionado=None, formatador=None, altura=600):
     """Cada município pintado do claro ao escuro pela medida, com as divisas do IBGE.
 
     Zoom com a rodinha, arrastar e clicar num município para filtrar.
@@ -215,7 +215,7 @@ def mapa_pintado(dados, medida, malha, vista, selecionado=None, formatador=None)
 
     fig.update_geos(fitbounds="locations", visible=False, projection_type="mercator",
                     bgcolor="rgba(0,0,0,0)")
-    fig.update_layout(**{**_BASE, "dragmode": "pan"}, height=600)
+    fig.update_layout(**{**_BASE, "dragmode": "pan"}, height=altura)
     return fig
 
 

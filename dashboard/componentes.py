@@ -91,9 +91,9 @@ def tabela(df, colunas, nome, coluna_filtro, medida, altura=420):
     """Tabela clicável com barra de dados na coluna `valor`.
 
     colunas: {coluna do df: título na tela}, sem contar a coluna `valor`
-    medida: nome de uma medida de MEDIDAS, ou um título livre (formato decimal)
+    medida: nome de uma medida de MEDIDAS, ou um título livre (número inteiro)
     """
-    tipo = MEDIDAS[medida][2] if medida in MEDIDAS else "decimal"
+    tipo = MEDIDAS[medida][2] if medida in MEDIDAS else "numero"
     titulo_valor = f"{medida} (R$)" if tipo == "reais" else medida
 
     chave = filtros.chave(nome)

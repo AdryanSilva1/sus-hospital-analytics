@@ -92,7 +92,8 @@ header[data-testid="stHeader"] [aria-current="page"] { background: rgba(255, 255
 .st-key-chips .st-key-chip-tudo button p { color: #1F4E79; text-decoration: underline; }
 
 /* ── Filtros do paciente (direita) ── */
-.st-key-tile-filtros { gap: .4rem; }
+.st-key-tile-filtros { gap: .4rem; padding: 8px 14px; }
+.st-key-tile-filtros [data-testid="stSelectbox"] { padding-left: 11px; }
 .st-key-tile-filtros label p { font-size: .8rem; color: #555; font-weight: 600; }
 
 /* ── Lista de medidas (estilo Power BI) ── */
@@ -122,6 +123,7 @@ header[data-testid="stHeader"] [aria-current="page"] { background: rgba(255, 255
 }
 .tabela-pbi td { padding: 5px 8px; border-bottom: 1px solid #EDF0F4; color: #2B2B2B; }
 .tabela-pbi td.nome { text-align: left; }
+.tabela-pbi td.cid { width: 52px; color: #555; }
 .tabela-pbi td.ico, .tabela-pbi th.ico { text-align: center; width: 40px; font-size: 1.15rem; }
 .tabela-pbi .num { text-align: right; white-space: nowrap; }
 .tabela-pbi td.barra { position: relative; width: 45%; }
@@ -132,7 +134,7 @@ header[data-testid="stHeader"] [aria-current="page"] { background: rgba(255, 255
                        position: sticky; bottom: 0; background: #FFFFFF; }
 
 /* Cartões das outras páginas */
-[class*="st-key-cartoes"] { gap: 10px; flex-wrap: wrap; }
+[class*="st-key-cartoes"] { gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
 [class*="st-key-cartoes"] > div { flex: 1 1 160px; }
 .cartao { background: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 3px rgba(20, 40, 70, .14);
           border-top: 4px solid #1F3864; padding: 10px 14px; }

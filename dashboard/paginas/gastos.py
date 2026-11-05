@@ -3,11 +3,12 @@
 import streamlit as st
 
 from dashboard import visuais
-from dashboard.componentes import aviso, cartao, grafico, tabela, tile, titulo
+from dashboard.componentes import aviso, cartao, grafico, html, tabela_pbi, tile, titulo
 from dashboard.medidas import calcular, formatar, porcentagem, tirar_pequenos, total
 from dashboard.painel import MESES, NOMES_UF
 
 GASTO = "Valor AIH"
+ALTURA_FAIXA = 500  # os dois blocos de baixo com a mesma altura
 
 
 def numeros(painel):
@@ -60,8 +61,9 @@ def top_municipios(painel):
 def doencas_mais_caras(painel):
     medida = "Valor Médio AIH"
     df = calcular(painel.dados("cid", ignorar=["cid"]), ["cid", "descricao"], medida)
-    tabela(tirar_pequenos(df, medida).head(40), {"cid": "CID", "descricao": "Doença"},
-           "gasto-cid", "cid", medida, altura=470)
+    linhas = tirar_pequenos(df, medida).head(40).to_dict("records")
+    html(tabela_pbi(linhas, [("cid", "CID", "cid"), ("descricao", "Doença", "nome")], medida,
+                    destaque=st.session_state.cid))
     aviso(painel, "cid")
 
 
@@ -88,9 +90,9 @@ def mostrar(painel):
         por_coluna(painel, "capitulo_cid", "capitulo_cid", "gasto-sistema")
 
     esquerda, direita = st.columns(2)
-    with esquerda, tile("gasto-mun"):
+    with esquerda, tile("gasto-mun", ALTURA_FAIXA):
         titulo("Municípios que mais receberam")
         top_municipios(painel)
-    with direita, tile("gasto-cid"):
+    with direita, tile("gasto-cid", ALTURA_FAIXA):
         titulo("Doenças mais caras por internação (valor médio)")
         doencas_mais_caras(painel)
