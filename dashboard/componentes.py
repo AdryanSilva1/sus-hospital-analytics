@@ -1,14 +1,16 @@
 """Peças de tela reaproveitadas pelas abas: blocos, cartões, gráficos e tabelas clicáveis."""
 
+import html as html_seguro
+
 import streamlit as st
 
 from dashboard import filtros
 from dashboard.dados import filtros_fora
-from dashboard.medidas import MEDIDAS
+from dashboard.medidas import MEDIDAS, formatar
 from dashboard.visuais import CONFIG
 
 LOGO = """
-<svg width="54" height="54" viewBox="0 0 64 64">
+<svg width="58" height="58" viewBox="0 0 64 64">
   <rect x="2" y="2" width="60" height="60" rx="14" fill="#E9F3FB"/>
   <path d="M32 50s-17-10.5-17-22a9 9 0 0 1 17-4.2A9 9 0 0 1 49 28c0 11.5-17 22-17 22z" fill="#F06B5B"/>
   <rect x="28.5" y="21" width="7" height="20" rx="1.5" fill="#fff"/>
@@ -17,7 +19,7 @@ LOGO = """
 """
 
 NOMES_FILTRO = {
-    "cod_municipio": "município", "cid": "doença (CID)", "sexo": "sexo",
+    "regiao": "região", "cod_municipio": "município", "cid": "doença (CID)", "sexo": "sexo",
     "faixa_etaria": "faixa etária", "raca": "raça/cor",
     "capitulo_cid": "sistema do corpo", "tipo_procedimento": "procedimento",
 }
@@ -102,3 +104,31 @@ def tabela(df, colunas, nome, coluna_filtro, medida, altura=420):
             max_value=float(df["valor"].max()) if len(df) else 1.0,
         )},
     )
+
+
+def tabela_pbi(linhas, colunas, medida, destaque=None, total=None):
+    """Tabela HTML no estilo do Power BI: cabeçalho escuro e barra de dados no indicador.
+
+    linhas: lista de dicts com as chaves de `colunas` e `valor`
+    colunas: lista de (chave, título, classe css)
+    """
+    maior = max((linha["valor"] for linha in linhas), default=0) or 1
+    cabecalho = "".join(f'<th class="{c}">{html_seguro.escape(t)}</th>' for _, t, c in colunas)
+
+    corpo = []
+    for linha in linhas:
+        classe = ' class="destaque"' if destaque and destaque in linha.values() else ""
+        celulas = "".join(f'<td class="{c}">{html_seguro.escape(str(linha[k]))}</td>'
+                          for k, _, c in colunas)
+        largura = linha["valor"] / maior * 100
+        corpo.append(f'<tr{classe}>{celulas}<td class="num barra"><div style="width:{largura:.1f}%">'
+                     f'</div><span>{formatar(linha["valor"], medida)}</span></td></tr>')
+
+    rodape = ""
+    if total is not None:
+        vazias = "<td></td>" * (len(colunas) - 1)
+        rodape = (f'<tfoot><tr><td>Total</td>{vazias}'
+                  f'<td class="num">{formatar(total, medida)}</td></tr></tfoot>')
+
+    return (f'<table class="tabela-pbi"><thead><tr>{cabecalho}<th class="num">Indicador</th></tr>'
+            f'</thead><tbody>{"".join(corpo)}</tbody>{rodape}</table>')

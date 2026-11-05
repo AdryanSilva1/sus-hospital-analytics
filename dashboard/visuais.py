@@ -10,6 +10,10 @@ AZUL = "#1F4E79"
 AZUL_CLARO = "#9DBBD6"
 CINZA = "#D5DBE3"
 
+# Cores das regiões, na ordem da maior para a menor (parecidas com as do Power BI)
+PALETA = ["#3A9BBF", "#E2BEC3", "#EFE84A", "#F47A69", "#7D8A8E", "#E9B83C", "#A6908F",
+          "#6BBF8A", "#9C7BC0", "#5DA9E9", "#F29E4C", "#B5C99A"]
+
 CONFIG = {"displayModeBar": False}
 
 _BASE = dict(
@@ -35,8 +39,20 @@ def _texto(valores, medida, formatador):
     return [formatador(v) for v in valores]
 
 
+def cores_por(valores):
+    """Uma cor da paleta para cada valor (ex.: região), na ordem recebida."""
+    return {v: PALETA[i % len(PALETA)] for i, v in enumerate(valores)}
+
+
 def _cores(dados, chave, selecionado, cor):
-    cores = [CORES_UF.get(u, AZUL) for u in dados["uf"]] if cor == "uf" else [cor] * len(dados)
+    """cor: uma cor fixa, "uf", ou (coluna, {valor: cor}) para colorir por outra coluna."""
+    if cor == "uf":
+        cores = [CORES_UF.get(u, AZUL) for u in dados["uf"]]
+    elif isinstance(cor, tuple):
+        coluna, mapa_cores = cor
+        cores = [mapa_cores.get(v, CINZA) for v in dados[coluna]]
+    else:
+        cores = [cor] * len(dados)
     if selecionado is None:
         return cores
     return [c if k == selecionado else CINZA for c, k in zip(cores, dados[chave])]
@@ -51,7 +67,7 @@ def barras(dados, rotulo, medida, chave, selecionado=None, cor=AZUL, altura=None
     fig = go.Figure(go.Bar(
         x=dados["valor"], y=dados[rotulo], orientation="h",
         text=_texto(dados["valor"], medida, formatador),
-        textposition="outside", cliponaxis=False,
+        textposition="outside", cliponaxis=False, textfont=dict(size=12, color="#333"),
         marker=dict(color=_cores(dados, chave, selecionado, cor)),
         customdata=[[k] for k in dados[chave]],
         hovertemplate="<b>%{y}</b><br>" + medida + ": %{text}"
@@ -61,7 +77,7 @@ def barras(dados, rotulo, medida, chave, selecionado=None, cor=AZUL, altura=None
     maior = dados["valor"].max() if len(dados) else 1
     fig.update_layout(
         **_BASE,
-        height=altura or max(140, 28 * len(dados) + 10),
+        height=altura or max(140, 25 * len(dados) + 10),
         xaxis=dict(visible=False, range=[0, maior * 1.3], fixedrange=True),
         yaxis=dict(title="", autorange="reversed", fixedrange=True,
                    categoryorder="array", categoryarray=list(dados[rotulo])),
@@ -119,19 +135,23 @@ VISTAS = {
     "RS": (-57.8, -49.5, -33.9, -26.9),
 }
 
+# Zoom inicial do mapa de ruas para caber o recorte inteiro
+ZOOM_RUAS = {"Sul": 4.7, "PR": 5.6, "SC": 6.0, "RS": 5.4}
 
-def _bolhas(dados, medida, malha, selecionado, formatador):
-    """Uma lista de traços de bolhas (um por estado), servindo aos dois tipos de mapa."""
+
+def _bolhas(dados, medida, malha, selecionado, formatador, cores):
+    """Traços de bolhas, um por cor (estado ou região), servindo aos dois tipos de mapa."""
+    coluna_cor, mapa_cores = cores or ("uf", CORES_UF)
     dados = dados.merge(malha["centros"], on="cod_municipio")
     dados = dados[dados["valor"] > 0].sort_values("valor", ascending=False)
     maior = dados["valor"].max() if len(dados) else 1
 
     camadas = []
-    for uf, grupo in dados.groupby("uf"):
+    for grupo_cor, grupo in dados.groupby(coluna_cor):
         escolhido = grupo["cod_municipio"] == selecionado
         camadas.append(dict(
-            uf=uf, lon=grupo["lon"], lat=grupo["lat"],
-            tamanho=5 + 30 * (grupo["valor"] / maior) ** 0.5,
+            cor=mapa_cores.get(grupo_cor, AZUL), nome=grupo_cor, lon=grupo["lon"], lat=grupo["lat"],
+            tamanho=5 + 26 * (grupo["valor"] / maior) ** 0.5,
             opacidade=[0.9 if e or selecionado is None else 0.25 for e in escolhido],
             escolhido=escolhido,
             customdata=[
@@ -142,7 +162,7 @@ def _bolhas(dados, medida, malha, selecionado, formatador):
                     grupo["internacoes"], grupo["obitos"], grupo["valor_total"])
             ],
             hover=(
-                "<b>%{customdata[1]}</b> (" + uf + ")<br>"
+                "<b>%{customdata[1]}</b> (" + str(grupo_cor) + ")<br>"
                 "<b>" + medida + ": %{customdata[2]}</b><br>"
                 "Internações: %{customdata[3]}<br>"
                 "Óbitos: %{customdata[4]}<br>"
@@ -199,14 +219,16 @@ def mapa_pintado(dados, medida, malha, vista, selecionado=None, formatador=None)
     return fig
 
 
-def mapa(dados, medida, malha, vista, selecionado=None, com_ruas=False, formatador=None):
+def mapa(dados, medida, malha, vista, selecionado=None, com_ruas=False, formatador=None,
+         cores=None, altura=600):
     """Bolhas por município. `dados` precisa de cod_municipio, municipio, uf e das métricas.
 
     com_ruas=False: divisa dos municípios do IBGE desenhada em SVG (abre em qualquer navegador).
     com_ruas=True: mapa de ruas (OpenStreetMap/CARTO) por baixo; precisa de internet e WebGL.
+    cores: (coluna, {valor: cor}) para colorir as bolhas; sem isso, a cor é o estado.
     """
     ufs = ["PR", "SC", "RS"] if vista == "Sul" else [vista]
-    camadas = _bolhas(dados, medida, malha, selecionado, formatador)
+    camadas = _bolhas(dados, medida, malha, selecionado, formatador, cores)
     lon_min, lon_max, lat_min, lat_max = VISTAS[vista]
     fig = go.Figure()
 
@@ -214,13 +236,13 @@ def mapa(dados, medida, malha, vista, selecionado=None, com_ruas=False, formatad
         for c in camadas:
             fig.add_trace(go.Scattermap(
                 lon=c["lon"], lat=c["lat"], mode="markers",
-                marker=dict(size=c["tamanho"], color=CORES_UF[c["uf"]], opacity=c["opacidade"]),
-                customdata=c["customdata"], hovertemplate=c["hover"],
+                marker=dict(size=c["tamanho"], color=c["cor"], opacity=c["opacidade"]),
+                customdata=c["customdata"], hovertemplate=c["hover"], **_SEM_APAGAR,
             ))
+        centro = dict(lon=(lon_min + lon_max) / 2, lat=(lat_min + lat_max) / 2)
         fig.update_layout(
-            **{**_BASE, "dragmode": "pan"}, height=600,
-            map=dict(style="carto-positron",
-                     bounds=dict(west=lon_min, east=lon_max, south=lat_min, north=lat_max)),
+            **{**_BASE, "dragmode": "pan"}, height=altura,
+            map=dict(style="carto-positron", center=centro, zoom=ZOOM_RUAS[vista]),
         )
         return fig
 
@@ -234,7 +256,7 @@ def mapa(dados, medida, malha, vista, selecionado=None, com_ruas=False, formatad
         fig.add_trace(go.Scatter(
             x=c["lon"], y=c["lat"], mode="markers",
             marker=dict(
-                size=c["tamanho"], color=CORES_UF[c["uf"]], opacity=c["opacidade"],
+                size=c["tamanho"], color=c["cor"], opacity=c["opacidade"],
                 line=dict(color=["#111" if e else "#FFF" for e in c["escolhido"]],
                           width=[2.5 if e else 0.8 for e in c["escolhido"]]),
             ),
@@ -242,7 +264,7 @@ def mapa(dados, medida, malha, vista, selecionado=None, com_ruas=False, formatad
         ))
 
     fig.update_layout(
-        **{**_BASE, "dragmode": "pan"}, height=600,
+        **{**_BASE, "dragmode": "pan"}, height=altura,
         xaxis=dict(visible=False, range=[lon_min, lon_max]),
         # 1 grau de longitude vale menos que 1 de latitude nessa região (~cos 27°)
         yaxis=dict(visible=False, range=[lat_min, lat_max], scaleanchor="x", scaleratio=1 / 0.89),

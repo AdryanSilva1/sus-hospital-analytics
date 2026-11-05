@@ -7,7 +7,7 @@ mesmo item desmarca. Os filtros ficam no st.session_state.
 import streamlit as st
 
 # Filtros que só existem em uma das tabelas resumidas
-SO_MUNICIPIO = ["cod_municipio"]
+SO_MUNICIPIO = ["regiao", "cod_municipio"]
 SO_CID = ["cid"]
 SO_PERFIL = ["sexo", "faixa_etaria", "raca"]
 
@@ -15,11 +15,13 @@ PADRAO = {
     "f_uf": "Sul",
     "f_proc": "Todos",
     "f_sistema": "Todos",
+    "regiao": None,
     "cod_municipio": None,
     "cid": None,
-    "sexo": None,
-    "faixa_etaria": None,
-    "raca": None,
+    # Os de perfil são caixas de seleção, por isso o padrão é "Todos"
+    "sexo": "Todos",
+    "faixa_etaria": "Todos",
+    "raca": "Todos",
     "versao": 0,
 }
 
@@ -44,18 +46,22 @@ def definir(coluna, valor):
     elif coluna == "tipo_procedimento":
         s.f_proc = "Todos" if s.f_proc == valor else valor
     else:
-        novo = None if s[coluna] == valor else valor
-        # Município, CID e perfil vêm de tabelas diferentes, então
-        # só dá para focar em um desses tipos por vez.
-        if coluna in SO_MUNICIPIO:
-            limpar(SO_CID + SO_PERFIL)
-        elif coluna in SO_CID:
-            limpar(SO_MUNICIPIO + SO_PERFIL)
-        else:
-            limpar(SO_MUNICIPIO + SO_CID)
+        novo = PADRAO[coluna] if s[coluna] == valor else valor
+        so_um_foco(coluna)
         s[coluna] = novo
 
     s.versao += 1
+
+
+def so_um_foco(coluna):
+    """Município, CID e perfil vêm de tabelas diferentes, então só dá para
+    focar em um desses tipos por vez: escolher um limpa os outros."""
+    if coluna in SO_MUNICIPIO:
+        limpar(SO_CID + SO_PERFIL)
+    elif coluna in SO_CID:
+        limpar(SO_MUNICIPIO + SO_PERFIL)
+    else:
+        limpar(SO_MUNICIPIO + SO_CID)
 
 
 def limpar(colunas=None):
@@ -90,9 +96,8 @@ def atuais(ano):
         "ano": ano,
         "tipo_procedimento": s.f_proc,
         "capitulo_cid": s.f_sistema,
+        "regiao": s.regiao,
         "cod_municipio": s.cod_municipio,
         "cid": s.cid,
-        "sexo": s.sexo,
-        "faixa_etaria": s.faixa_etaria,
-        "raca": s.raca,
+        **{coluna: None if s[coluna] == "Todos" else s[coluna] for coluna in SO_PERFIL},
     }

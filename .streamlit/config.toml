@@ -1,10 +1,13 @@
 [theme]
 base = "light"
-primaryColor = "#1565C0"
-backgroundColor = "#F5F7FA"
+primaryColor = "#1F3864"
+backgroundColor = "#EEF1F5"
 secondaryBackgroundColor = "#FFFFFF"
 textColor = "#1F2937"
 font = "sans serif"
+
+[client]
+toolbarMode = "viewer"   # esconde o botão Deploy e o menu de desenvolvedor
 
 [server]
 headless = true

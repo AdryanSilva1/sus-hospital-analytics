@@ -50,7 +50,8 @@ def gerar(pasta, municipios_por_estado=12):
             codigo = f"{prefixo}{i:04d}"
             # Municípios falsos em grade, um encostado no outro
             x, y = lon + (i % lado - lado / 2) * 0.4, lat + (i // lado - lado / 2) * 0.4
-            municipios.append({"cod_municipio": codigo, "municipio": f"Cidade {uf} {i}", "uf": uf})
+            municipios.append({"cod_municipio": codigo, "municipio": f"Cidade {uf} {i}", "uf": uf,
+                               "regiao": f"Região {uf} {i % 5 + 1}"})
             borda = [[x - .2, y - .2], [x + .2, y - .2], [x + .2, y + .2], [x - .2, y + .2], [x - .2, y - .2]]
             malha.append({"type": "Feature", "id": codigo, "properties": {"uf": uf},
                           "geometry": {"type": "Polygon", "coordinates": [borda]}})

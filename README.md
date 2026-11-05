@@ -24,6 +24,7 @@ se atualizam sozinhos, sem nenhum download manual.
 - Como isso mudou **mês a mês** e em comparação com o ano anterior (mesmos meses)
 - Quais doenças e sistemas do corpo mais internam e quais custam mais por internação
 - Quais cidades têm mais internações **por 100 mil habitantes**, contando onde o paciente mora
+- Como cada **região do IBGE** se compara (em SC: Florianópolis, Joinville, Blumenau, Chapecó, Criciúma, Lages e Caçador)
 - Quais cidades funcionam como **polo regional**, recebendo pacientes de outras cidades,
   e de onde vêm os pacientes de cada uma
 - Diferenças por faixa etária, sexo e raça/cor
@@ -31,14 +32,11 @@ se atualizam sozinhos, sem nenhum download manual.
 Quase tudo é clicável, como num Power BI: clicar numa barra, bolha do mapa ou linha de tabela
 filtra o painel inteiro. Clicar de novo, ou no ✕ do filtro, desmarca.
 
-| Aba | O que mostra |
+| Página | O que mostra |
 |---|---|
-| 📊 Visão geral | Evolução mês a mês × ano anterior, por estado, procedimento, sistema do corpo e top municípios |
-| 💰 Gastos | Valor pago por ano, estado, sistema, procedimento e município; doenças mais caras por internação |
-| 🗺️ Mapa e municípios | Mapa com zoom, arrastar e clique: municípios pintados pela medida, bolhas ou bolhas sobre mapa de ruas; ranking com busca |
-| 🔁 Fluxo de pacientes | Onde o paciente mora × onde foi internado, taxa por 100 mil hab. e polos regionais |
-| 🩺 Doenças (CID-10) | Todas as doenças e o detalhe da que for clicada |
-| 👥 Perfil do paciente | Faixa etária, sexo e raça/cor |
+| **Painel** | No estilo Power BI: número principal com variação contra o ano anterior, botões dos sistemas do corpo, barras por região do IBGE e por município, mapa com ruas, tabela de diagnósticos (CID-10), filtros de faixa etária, raça/cor, sexo e procedimento, sete medidas e tabela por sistema |
+| **Gastos e evolução** | Valor pago mês a mês × ano anterior, por ano, estado, sistema, procedimento e município; doenças mais caras por internação |
+| **Fluxo de pacientes** | Onde o paciente mora × onde foi internado, taxa por 100 mil hab. e polos regionais |
 
 ---
 
@@ -61,11 +59,11 @@ painel precisa:
 
 | Tabela | Corte | Usada em |
 |---|---|---|
-| `por_municipio` | município do hospital × sistema × procedimento | mapa, rankings, números do topo |
+| `por_municipio` | município do hospital × sistema × procedimento | mapa, regiões, municípios, número principal |
 | `por_mes` | mês × sistema × procedimento | evolução mensal e comparação com o ano anterior |
-| `por_cid` | doença (CID-10) × procedimento | aba Doenças e doenças mais caras |
-| `por_perfil` | sistema × procedimento × sexo × faixa etária × raça/cor | aba Perfil |
-| `por_fluxo` | município onde mora × município do hospital | aba Fluxo e taxa por 100 mil hab. |
+| `por_cid` | doença (CID-10) × procedimento | tabela de diagnósticos e doenças mais caras |
+| `por_perfil` | sistema × procedimento × sexo × faixa etária × raça/cor | filtros de faixa etária, raça/cor e sexo |
+| `por_fluxo` | município onde mora × município do hospital | página Fluxo e taxa por 100 mil hab. |
 
 Resumir antes deixa o painel leve: ele nunca lê os milhões de linhas brutas.
 Quando sai um mês novo no DATASUS, o ano daquele mês é refeito inteiro, para pegar também as
@@ -81,13 +79,15 @@ correções que o DATASUS faz em meses anteriores.
 | Cirurgia | Procedimento principal do grupo 04 da tabela SIGTAP (clínico = grupo 03) |
 | Óbito hospitalar | `MORTE = 1` (morreu durante a internação) |
 | Valor pago | `VAL_TOT` da AIH, valor nominal sem correção pela inflação |
-| Município | Onde fica o hospital (`MUNIC_MOV`). Na aba Fluxo, também onde o paciente mora (`MUNIC_RES`) |
+| Município | Onde fica o hospital (`MUNIC_MOV`). Na página Fluxo, também onde o paciente mora (`MUNIC_RES`) |
+| Região | Região geográfica intermediária do IBGE do município do hospital |
 | Taxa por 100 mil hab. | Internações dos moradores ÷ população do Censo 2022 × 100.000 (cidades com 5 mil hab. ou mais) |
 | Comparação com o ano anterior | Mesmos meses nos dois anos (ex.: jan–ago/2025 × jan–ago/2024) |
 
 ## Limitações
 
-- **Fila de espera e mortes na fila** não existem em base pública nacional, por isso não estão no painel.
+- **Fila de espera, mortes na fila e reinternações** não estão no painel: as bases públicas não identificam o paciente nem a fila.
+- A API do IBGE não responde fora do Brasil. Por isso municípios, regiões, mapa e população são baixados uma vez num computador no Brasil e ficam salvos no repositório; o GitHub Actions só atualiza os dados do DATASUS.
 - Só entram internações pagas pelo SUS (rede pública e conveniada).
 - O DATASUS publica com alguns meses de atraso e pode corrigir meses recentes.
 - Município, doença e perfil do paciente estão em tabelas separadas (juntas ficariam grandes demais),
@@ -138,7 +138,7 @@ Os testes não acessam a internet: as APIs são simuladas e o painel é testado 
 
 ```
 sus-hospital-analytics/
-├── app.py                      ← monta a página (topo + abas)
+├── app.py                      ← monta a página (topo + páginas)
 ├── pipeline/
 │   ├── config.py               ← estados, ano inicial, endereços das fontes
 │   ├── extract.py              ← FTP do DATASUS, CID-10, APIs do IBGE
@@ -149,11 +149,12 @@ sus-hospital-analytics/
 │   ├── dados.py                ← leitura das tabelas e recorte pelos filtros
 │   ├── medidas.py              ← internações, óbitos, valor... e formatação (R$, %)
 │   ├── filtros.py              ← estado dos filtros e o que cada clique faz
-│   ├── painel.py               ← o contexto que todas as abas recebem
-│   ├── topo.py                 ← cabeçalho, barra de filtros e números principais
+│   ├── painel.py               ← o contexto que todas as páginas recebem
+│   ├── topo.py                 ← cabeçalho, sistemas do corpo e filtros ativos
 │   ├── componentes.py          ← blocos, cartões, gráficos e tabelas clicáveis
 │   ├── visuais.py              ← figuras Plotly (barras, linha, mapa)
-│   ├── abas/                   ← uma aba por arquivo
+│   ├── icones.py               ← ícone de cada sistema do corpo e de cada medida
+│   ├── paginas/                ← uma página por arquivo
 │   └── styles.css
 ├── tests/
 ├── data/
@@ -193,7 +194,7 @@ Southern Brazil (Paraná, Santa Catarina and Rio Grande do Sul).
   or table row to filter the whole page), month-over-month trends vs. the previous year,
   spending, an interactive map, admissions per 100k inhabitants, and patient flow between
   cities (where patients live vs. where they are treated).
-- **Engineering:** modular code (one file per tab), tests for the pipeline, dashboard rules and
+- **Engineering:** modular code (one file per page), tests for the pipeline, dashboard rules and
   a headless run of the full app with fake data, linting with ruff and CI on every push.
 
 ---

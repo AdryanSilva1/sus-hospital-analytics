@@ -12,6 +12,7 @@ TABELAS = ["municipio", "perfil", "cid", "mes", "fluxo"]
 
 # Filtros que só existem numa tabela (os demais existem em todas)
 TABELA_DO_FILTRO = {
+    "regiao": "municipio",
     "cod_municipio": "municipio",
     "cid": "cid",
     "sexo": "perfil",
@@ -25,10 +26,18 @@ def carregar():
     """Lê as tabelas geradas pelo pipeline. O painel nunca busca dado no DATASUS."""
     tabelas = {nome: pd.read_parquet(PASTA / f"por_{nome}.parquet") for nome in TABELAS}
 
-    nomes = pd.read_parquet(PASTA / "municipios.parquet")[["cod_municipio", "municipio"]]
+    municipios = pd.read_parquet(PASTA / "municipios.parquet")
+    if "regiao" not in municipios:  # dados de uma versão antiga do pipeline
+        municipios["regiao"] = municipios["uf"]
+    nomes = municipios[["cod_municipio", "municipio"]]
+
     tabelas["municipio"] = _com_nome(tabelas["municipio"], nomes, "cod_municipio", "municipio")
+    tabelas["municipio"] = tabelas["municipio"].merge(
+        municipios[["cod_municipio", "regiao"]], on="cod_municipio", how="left")
+    tabelas["municipio"]["regiao"] = tabelas["municipio"]["regiao"].fillna("Sem região")
     tabelas["fluxo"] = _com_nome(tabelas["fluxo"], nomes, "cod_municipio", "municipio")
     tabelas["fluxo"] = _com_nome(tabelas["fluxo"], nomes, "cod_residencia", "residencia")
+    tabelas["municipios"] = municipios
 
     tabelas["cid"] = _com_descricao_cid(tabelas["cid"])
     tabelas["populacao"] = _ler_opcional("populacao.parquet")
