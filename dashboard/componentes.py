@@ -99,10 +99,15 @@ def tabela(df, colunas, nome, coluna_filtro, medida, altura=420):
         hide_index=True, height=altura, width="stretch",
         selection_mode="single-row", key=chave,
         on_select=lambda: filtros.ao_clicar_tabela(chave, coluna_filtro, valores),
-        column_config={titulo_valor: st.column_config.ProgressColumn(
-            titulo_valor, format=FORMATO_COLUNA[tipo], min_value=0,
-            max_value=float(df["valor"].max()) if len(df) else 1.0,
-        )},
+        column_config={
+            # Colunas de título curto (CID, UF, ícone) ficam estreitas
+            **{t: st.column_config.Column(width="small" if len(t) <= 3 else "medium")
+               for t in colunas.values()},
+            titulo_valor: st.column_config.ProgressColumn(
+                titulo_valor, format=FORMATO_COLUNA[tipo], min_value=0, width="medium",
+                max_value=float(df["valor"].max()) if len(df) else 1.0,
+            ),
+        },
     )
 
 
