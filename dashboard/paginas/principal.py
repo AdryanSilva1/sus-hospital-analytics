@@ -67,6 +67,14 @@ def por_municipio(painel, cores):
 
 
 def mapa(painel, cores):
+    texto, botoes = st.columns([2.6, 1], vertical_alignment="center")
+    with texto:
+        titulo(f"{painel.medida} por município no mapa")
+    with botoes:
+        # "Simples" abre em qualquer navegador; "Ruas" precisa de internet e WebGL
+        fundo = st.segmented_control("Fundo", ["Simples", "Ruas"], default="Simples", key="fundo_mapa",
+                                     label_visibility="collapsed") or "Simples"
+
     malha = painel.tabelas["malha"]
     if malha is None:
         st.info("O mapa ainda não foi baixado. Rode `python -m pipeline.run` de novo.")
@@ -74,9 +82,6 @@ def mapa(painel, cores):
 
     df = calcular(painel.dados("municipio", ignorar=["cod_municipio"]),
                   ["cod_municipio", "municipio", "regiao", "uf"], painel.medida)
-    # "Simples" abre em qualquer navegador; "Ruas" precisa de internet e WebGL
-    fundo = st.segmented_control("Fundo", ["Simples", "Ruas"], default="Simples", key="fundo_mapa",
-                                 label_visibility="collapsed") or "Simples"
     fig = visuais.mapa(tirar_pequenos(df, painel.medida), painel.medida, malha,
                        st.session_state.f_uf, st.session_state.cod_municipio,
                        com_ruas=fundo == "Ruas", cores=("regiao", cores), altura=ALTURA_MAPA)
@@ -119,7 +124,6 @@ def mostrar(painel):
 
     with centro:
         with tile("mapa", ALTURA["mapa"]):
-            titulo(f"{medida} por município no mapa")
             mapa(painel, cores)
         with tile("cid", ALTURA["cid"]):
             titulo(f"{medida} por diagnóstico (CID-10)")

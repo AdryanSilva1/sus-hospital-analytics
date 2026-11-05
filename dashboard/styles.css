@@ -115,10 +115,13 @@ header[data-testid="stHeader"] [aria-current="page"] { background: rgba(255, 255
 .st-key-tile-medidas [data-testid="stRadioOption"][data-selected="true"] { background: #1F3864; border-color: #1F3864; }
 .st-key-tile-medidas [data-testid="stRadioOption"][data-selected="true"] p { color: #FFFFFF; font-weight: 600; }
 
-/* Botões "Ruas / Simples" do mapa, pequenos no canto */
-.st-key-tile-mapa [data-testid="stButtonGroup"] { justify-content: flex-end; margin-bottom: -36px; position: relative; z-index: 2; }
-.st-key-tile-mapa [data-testid="stButtonGroup"] button { min-height: 26px; padding: 0 10px; }
-.st-key-tile-mapa [data-testid="stButtonGroup"] button p { font-size: .75rem; }
+/* Botões "Simples / Ruas" do mapa: pequenos, na linha do título, à direita */
+.st-key-tile-mapa [data-testid="stButtonGroup"],
+.st-key-tile-mapa [data-testid="stButtonGroup"] > div { justify-content: flex-end; width: 100%; }
+.st-key-tile-mapa [data-testid="stButtonGroup"] button { min-height: 26px; padding: 0 12px; }
+.st-key-tile-mapa [data-testid="stButtonGroup"] button p { font-size: .78rem; }
+.st-key-tile-mapa [data-testid="stButtonGroup"] button[aria-checked="true"] { background: #1F3864; border-color: #1F3864; }
+.st-key-tile-mapa [data-testid="stButtonGroup"] button[aria-checked="true"] p { color: #FFFFFF; }
 
 /* ── Tabela no estilo Power BI ── */
 .tabela-pbi { width: 100%; border-collapse: collapse; font-size: .92rem; }
