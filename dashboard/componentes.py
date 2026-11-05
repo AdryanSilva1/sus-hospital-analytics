@@ -29,9 +29,13 @@ def html(conteudo):
     st.markdown(conteudo, unsafe_allow_html=True)
 
 
-def tile(chave):
-    """Caixa branca com sombra. A key vira a classe CSS st-key-tile-*."""
-    return st.container(key=f"tile-{chave}")
+def tile(chave, altura=None):
+    """Caixa branca com sombra. A key vira a classe CSS st-key-tile-*.
+
+    Com `altura`, a caixa tem altura fixa (e rolagem se precisar), para os
+    blocos da mesma faixa terminarem alinhados.
+    """
+    return st.container(key=f"tile-{chave}", height=altura or "content", border=False)
 
 
 def titulo(texto, ajuda=None):
@@ -131,8 +135,7 @@ def tabela_pbi(linhas, colunas, medida, destaque=None, total=None):
 
     rodape = ""
     if total is not None:
-        vazias = "<td></td>" * (len(colunas) - 1)
-        rodape = (f'<tfoot><tr><td>Total</td>{vazias}'
+        rodape = (f'<tfoot><tr><td colspan="{len(colunas)}">Total</td>'
                   f'<td class="num">{formatar(total, medida)}</td></tr></tfoot>')
 
     return (f'<table class="tabela-pbi"><thead><tr>{cabecalho}<th class="num">Indicador</th></tr>'
