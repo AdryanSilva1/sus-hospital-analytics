@@ -50,13 +50,14 @@ def _pontos(dados, medida, malha, ufs, selecionado, formatador, cor):
         lon=dados["lon"], lat=dados["lat"],
         tamanho=4 + 26 * (dados["valor"] / maior) ** 0.5,
         cor=tema.com_destaque(dados["cod_municipio"], selecionado, tema.cores_do_grupo(dados, cor)),
-        customdata=[
+        # Em array do numpy o Plotly monta a figura bem mais rápido que em lista de listas
+        customdata=np.array([
             [c, n, u, v, formatar(i, "Internações"), formatar(o, "Óbitos"), formatar(r, "Valor AIH")]
             for c, n, u, v, i, o, r in zip(
                 dados["cod_municipio"], dados["municipio"], dados[local],
                 tema.texto(dados["valor"], medida, formatador),
                 dados["internacoes"], dados["obitos"], dados["valor_total"])
-        ],
+        ], dtype=object).reshape(-1, 7),
         hover=(
             "<b>%{customdata[1]}</b> (%{customdata[2]})<br>"
             "<b>" + medida + ": %{customdata[3]}</b><br>"
@@ -85,8 +86,9 @@ def pintado(dados, medida, malha, ufs, selecionado=None, formatador=None, altura
         fig.add_trace(_pintura(sem_dado, [m["id"] for m in sem_dado]))
     fig.add_trace(_pintura(
         [m for m in municipios if m["id"] in com_dado], dados["cod_municipio"], dados["valor"],
-        customdata=[[c, n, t] for c, n, t in zip(dados["cod_municipio"], dados["municipio"],
-                                                 tema.texto(dados["valor"], medida, formatador))],
+        customdata=np.array([[c, n, t] for c, n, t in zip(
+            dados["cod_municipio"], dados["municipio"], tema.texto(dados["valor"], medida, formatador))],
+            dtype=object).reshape(-1, 3),
         hover="<b>%{customdata[1]}</b><br>" + medida + ": %{customdata[2]}",
     ))
     if selecionado in com_dado:
@@ -141,6 +143,13 @@ def _enquadrar_pintado(fig, altura):
     return fig
 
 
+def _por_regiao(ufs):
+    regioes = {}
+    for uf in ufs:
+        regioes.setdefault(REGIAO_DO_ESTADO.get(uf), []).append(uf)
+    return regioes
+
+
 def bolhas(dados, medida, malha, ufs, selecionado=None, com_ruas=False, formatador=None,
          altura=600, cor=None):
     """Bolhas por município. `dados` precisa de cod_municipio, municipio, uf e das métricas.
@@ -169,13 +178,16 @@ def bolhas(dados, medida, malha, ufs, selecionado=None, com_ruas=False, formatad
         )
         return fig
 
-    # Um estado só: a divisa de cada município. Vários: só a dos estados, que é bem mais leve
+    # Um estado só: a divisa de cada município. Vários: só a dos estados, que é bem mais leve.
+    # Um traço por região do Brasil (no máximo 5), e não um por estado: menos traços, mapa mais rápido
     contornos = malha["contornos"] if len(ufs) == 1 else malha["divisas_por_estado"]
-    for uf in ufs:
-        xs, ys = contornos.get(uf, ([], []))
+    for regiao, estados in _por_regiao(ufs).items():
+        partes = [contornos[uf] for uf in estados if uf in contornos]
+        if not partes:
+            continue
         fig.add_trace(go.Scatter(
-            x=xs, y=ys, mode="lines", fill="toself",
-            fillcolor=cores["regioes"].get(REGIAO_DO_ESTADO.get(uf), cores["sem_dado"]),
+            x=np.concatenate([x for x, _ in partes]), y=np.concatenate([y for _, y in partes]),
+            mode="lines", fill="toself", fillcolor=cores["regioes"].get(regiao, cores["sem_dado"]),
             line=dict(color=cores["bloco"], width=0.5), hoverinfo="skip",
         ))
 
