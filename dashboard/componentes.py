@@ -7,7 +7,7 @@ import streamlit as st
 from dashboard import filtros, icones
 from dashboard.dados import filtros_fora
 from dashboard.medidas import MEDIDAS, formatar
-from dashboard.visuais import CONFIG
+from dashboard.tema import CONFIG
 
 LOGO = icones.svg('<rect x="3" y="3" width="18" height="18" rx="5"/><path d="M12 8v8M8 12h8"/>', 44)
 

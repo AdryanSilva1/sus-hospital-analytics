@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import streamlit as st
 
-from dashboard import filtros, icones, visuais
+from dashboard import filtros, icones, mapas, tema, visuais
 from dashboard.brasil import ESTADOS
 from dashboard.componentes import aviso, grafico, html, tabela, tabela_pbi, tile, titulo
 from dashboard.medidas import MEDIDAS, calcular, tirar_pequenos, total
@@ -57,7 +57,7 @@ def agrupamento(painel):
     if len(painel.ufs) > 1:
         return Grupo("uf", "estado", "uf")
     regioes = sorted(painel.dados("municipio", ignorar=["regiao", "cod_municipio"])["regiao"].unique())
-    return Grupo("regiao", "região", ("regiao", visuais.cores_das_regioes(regioes)))
+    return Grupo("regiao", "região", ("regiao", tema.cores_das_regioes(regioes)))
 
 
 def por_grupo(painel, grupo):
@@ -101,7 +101,7 @@ def mapa(painel, grupo):
 
     df = calcular(painel.dados("municipio", ignorar=["cod_municipio"]),
                   ["cod_municipio", "municipio", "regiao", "uf"], painel.medida)
-    fig = visuais.mapa(tirar_pequenos(df, painel.medida), painel.medida, malha, painel.ufs,
+    fig = mapas.bolhas(tirar_pequenos(df, painel.medida), painel.medida, malha, painel.ufs,
                        st.session_state.cod_municipio, com_ruas=fundo == "Ruas", altura=ALTURA_MAPA,
                        cor=grupo.cor)
     grafico(fig, "painel-mapa", "cod_municipio", zoom=True)

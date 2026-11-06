@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from dashboard import visuais
+from dashboard import mapas, visuais
 from dashboard.brasil import ESTADO_DO_CODIGO
 from dashboard.componentes import aviso, cartao, grafico, tabela, tile, titulo
 from dashboard.medidas import decimal, numero, por_100_mil, porcentagem
@@ -70,7 +70,7 @@ def taxa_por_estado(moradores):
 
 def mapa(painel, pessoas, taxa, municipio):
     malha = painel.tabelas["malha"]
-    por_estado = len(pessoas) > visuais.MAXIMO_DE_MUNICIPIOS if pessoas is not None else False
+    por_estado = len(pessoas) > mapas.MAXIMO_DE_MUNICIPIOS if pessoas is not None else False
     if por_estado:
         titulo(f"{TAXA} por estado (onde o paciente mora)",
                "População do Censo 2022 (IBGE). Clique num estado para ver as cidades dele.")
@@ -83,11 +83,11 @@ def mapa(painel, pessoas, taxa, municipio):
 
     altura = ALTURA_FAIXA - 90
     if por_estado:
-        fig = visuais.mapa_pintado_por_estado(taxa_por_estado(pessoas), TAXA, malha, painel.ufs,
+        fig = mapas.pintado_por_estado(taxa_por_estado(pessoas), TAXA, malha, painel.ufs,
                                               formatador=decimal, altura=altura)
         grafico(fig, "fluxo-mapa-uf", "uf", zoom=True)
     else:
-        fig = visuais.mapa_pintado(taxa, TAXA, malha, painel.ufs, municipio,
+        fig = mapas.pintado(taxa, TAXA, malha, painel.ufs, municipio,
                                    formatador=decimal, altura=altura)
         grafico(fig, "fluxo-mapa", "cod_municipio", zoom=True)
 

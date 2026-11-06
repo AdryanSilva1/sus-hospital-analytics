@@ -156,7 +156,10 @@ sus-hospital-analytics/
 │   ├── painel.py               ← o contexto que todas as páginas recebem
 │   ├── topo.py                 ← cabeçalho, sistemas do corpo e filtros ativos
 │   ├── componentes.py          ← blocos, cartões, gráficos e tabelas clicáveis
-│   ├── visuais.py              ← figuras Plotly (barras, linha, mapa)
+│   ├── visuais.py              ← gráficos de barra e de linha (Plotly)
+│   ├── mapas.py                ← mapa de bolhas e mapa pintado (municípios ou estados)
+│   ├── malha.py                ← prepara a malha do IBGE e junta os municípios em estados
+│   ├── tema.py                 ← cores e estilo dos gráficos, no claro e no escuro
 │   ├── icones.py               ← ícones dos sistemas do corpo, das medidas e bandeiras
 │   ├── brasil.py               ← estados, regiões do país e o que cada local do seletor cobre
 │   ├── paginas/                ← uma página por arquivo

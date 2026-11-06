@@ -180,7 +180,8 @@ def montar(tabelas, controle):
 
     ano, ultimo_mes, anos, espaco_do_numero = cabecalho(controle)
     sistemas()
-    filtros_ativos(dict(zip(tabelas["municipio"]["cod_municipio"], tabelas["municipio"]["municipio"])))
+    municipios = tabelas["municipios"]
+    filtros_ativos(dict(zip(municipios["cod_municipio"], municipios["municipio"])))
 
     painel = Painel(tabelas, filtros.atuais(ano), st.session_state.medida, ano, ultimo_mes, anos)
     numero_principal(espaco_do_numero, painel)
