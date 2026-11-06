@@ -3,10 +3,10 @@
 import streamlit as st
 
 from dashboard import visuais
+from dashboard.brasil import ESTADO_DO_CODIGO
 from dashboard.componentes import aviso, cartao, grafico, tabela, tile, titulo
 from dashboard.medidas import decimal, numero, por_100_mil, porcentagem
 
-UF_DO_CODIGO = {"41": "PR", "42": "SC", "43": "RS"}
 TAXA = "Internações por 100 mil hab."
 ALTURA_FAIXA = 560  # mapa e polos com a mesma altura
 MINIMO_HABITANTES = 5_000  # cidade muito pequena faz a taxa oscilar demais
@@ -50,7 +50,7 @@ def taxa_por_residencia(painel):
     df = (fluxo.groupby(["cod_residencia", "residencia"])
           [["internacoes", "obitos", "valor_total"]].sum().reset_index()
           .rename(columns={"cod_residencia": "cod_municipio", "residencia": "municipio"}))
-    df["uf"] = df["cod_municipio"].str[:2].map(UF_DO_CODIGO)
+    df["uf"] = df["cod_municipio"].str[:2].map(ESTADO_DO_CODIGO)
     df = df[df["uf"].isin(painel.ufs)].merge(populacao, on="cod_municipio")
     df = df[df["populacao"] >= MINIMO_HABITANTES]
     df["valor"] = por_100_mil(df["internacoes"], df["populacao"])
@@ -61,7 +61,7 @@ def polos(fluxo):
     """Cidades que mais recebem pacientes de outras cidades."""
     de_fora = fluxo[fluxo["cod_residencia"] != fluxo["cod_municipio"]]
     df = de_fora.groupby(["cod_municipio", "municipio"])["internacoes"].sum().reset_index()
-    df["uf"] = df["cod_municipio"].str[:2].map(UF_DO_CODIGO)
+    df["uf"] = df["cod_municipio"].str[:2].map(ESTADO_DO_CODIGO)
     return df.rename(columns={"internacoes": "valor"}).sort_values("valor", ascending=False).head(15)
 
 
@@ -101,7 +101,7 @@ def mostrar(painel):
                f"População do Censo 2022 (IBGE). Cidades com menos de "
                f"{numero(MINIMO_HABITANTES)} habitantes ficam de fora.")
         if taxa is not None and painel.tabelas["malha"] is not None:
-            fig = visuais.mapa_pintado(taxa, TAXA, painel.tabelas["malha"], st.session_state.f_uf,
+            fig = visuais.mapa_pintado(taxa, TAXA, painel.tabelas["malha"], painel.ufs,
                                        municipio, formatador=decimal, altura=ALTURA_FAIXA - 90)
             grafico(fig, "fluxo-mapa", "cod_municipio", zoom=True)
     with dir_, tile("fluxo-polos", ALTURA_FAIXA):

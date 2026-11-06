@@ -3,9 +3,10 @@
 import streamlit as st
 
 from dashboard import visuais
+from dashboard.brasil import ESTADOS
 from dashboard.componentes import aviso, cartao, grafico, html, tabela_pbi, tile, titulo
 from dashboard.medidas import calcular, formatar, porcentagem, tirar_pequenos, total, variacao
-from dashboard.painel import MESES, NOMES_UF
+from dashboard.painel import MESES
 
 GASTO = "Valor AIH"
 # Altura das faixas de blocos (px): blocos lado a lado com a mesma altura
@@ -69,7 +70,7 @@ def por_coluna(painel, coluna, rotulo, nome, cor=visuais.AZUL, quantos=None):
     if quantos:
         df = df.head(quantos)
     if coluna == "uf":
-        df[rotulo] = df["uf"].map(NOMES_UF)
+        df[rotulo] = df["uf"].map(ESTADOS)
     grafico(visuais.barras(df, rotulo, GASTO, coluna, cor=cor), nome, coluna)
 
 

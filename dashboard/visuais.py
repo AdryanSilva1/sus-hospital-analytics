@@ -1,11 +1,14 @@
 """Figuras Plotly do painel. Nenhuma função aqui lê dados ou mexe em filtro."""
 
+import math
+
 import plotly.graph_objects as go
 
+from dashboard.brasil import CORES_ESTADO
 from dashboard.medidas import MEDIDAS, formatar
 
-# Uma cor por estado, igual em todos os visuais
-CORES_UF = {"PR": "#2E86AB", "SC": "#E4572E", "RS": "#F3A712"}
+# Cada estado tem a cor da sua região do Brasil, igual em todos os visuais
+CORES_UF = CORES_ESTADO
 AZUL = "#1F4E79"
 AZUL_CLARO = "#9DBBD6"
 CINZA = "#D5DBE3"
@@ -131,16 +134,20 @@ def linha_mensal(atual, anterior, medida, ano, meses):
 
 # ── Mapa ─────────────────────────────────────────────────────
 
-# Enquadramento de cada recorte: (lon mín, lon máx, lat mín, lat máx)
-VISTAS = {
-    "Sul": (-58.0, -47.8, -34.0, -22.4),
-    "PR": (-54.8, -47.9, -26.8, -22.4),
-    "SC": (-54.0, -48.2, -29.5, -25.8),
-    "RS": (-57.8, -49.5, -33.9, -26.9),
-}
+def _enquadramento(malha, ufs):
+    """(lon mín, lon máx, lat mín, lat máx) que cabe os estados escolhidos, com folga."""
+    xs = [x for uf in ufs for x in malha["contornos"].get(uf, ([], []))[0] if x is not None]
+    ys = [y for uf in ufs for y in malha["contornos"].get(uf, ([], []))[1] if y is not None]
+    if not xs:
+        return -74.0, -34.0, -34.0, 5.5  # Brasil inteiro
+    folga_x, folga_y = (max(xs) - min(xs)) * 0.04, (max(ys) - min(ys)) * 0.04
+    return min(xs) - folga_x, max(xs) + folga_x, min(ys) - folga_y, max(ys) + folga_y
 
-# Zoom inicial do mapa de ruas para caber o recorte inteiro
-ZOOM_RUAS = {"Sul": 4.7, "PR": 5.6, "SC": 6.0, "RS": 5.4}
+
+def _zoom_para(lon_min, lon_max, lat_min, lat_max):
+    """Zoom do mapa de ruas para caber a área (aproximação do zoom do MapLibre)."""
+    maior_lado = max(lon_max - lon_min, (lat_max - lat_min) * 1.3)
+    return max(2.5, min(9.0, math.log2(360 / maior_lado) - 0.6))
 
 
 def _bolhas(dados, medida, malha, selecionado, formatador, cores):
@@ -149,13 +156,14 @@ def _bolhas(dados, medida, malha, selecionado, formatador, cores):
     dados = dados.merge(malha["centros"], on="cod_municipio")
     dados = dados[dados["valor"] > 0].sort_values("valor", ascending=False)
     maior = dados["valor"].max() if len(dados) else 1
+    menor_bolha = 3 if len(dados) > 1500 else 5  # com o Brasil inteiro, bolhas menores
 
     camadas = []
     for grupo_cor, grupo in dados.groupby(coluna_cor):
         escolhido = grupo["cod_municipio"] == selecionado
         camadas.append(dict(
             cor=mapa_cores.get(grupo_cor, AZUL), nome=grupo_cor, lon=grupo["lon"], lat=grupo["lat"],
-            tamanho=5 + 26 * (grupo["valor"] / maior) ** 0.5,
+            tamanho=menor_bolha + 26 * (grupo["valor"] / maior) ** 0.5,
             opacidade=[0.9 if e or selecionado is None else 0.25 for e in escolhido],
             escolhido=escolhido,
             customdata=[
@@ -180,12 +188,11 @@ def _bolhas(dados, medida, malha, selecionado, formatador, cores):
 ESCALA = [[0, "#E3EEF8"], [0.35, "#8DBFE3"], [0.7, "#3A86C4"], [1, "#123A63"]]
 
 
-def mapa_pintado(dados, medida, malha, vista, selecionado=None, formatador=None, altura=600):
+def mapa_pintado(dados, medida, malha, ufs, selecionado=None, formatador=None, altura=600):
     """Cada município pintado do claro ao escuro pela medida, com as divisas do IBGE.
 
     Zoom com a rodinha, arrastar e clicar num município para filtrar.
     """
-    ufs = ["PR", "SC", "RS"] if vista == "Sul" else [vista]
     geo = {"type": "FeatureCollection",
            "features": [m for m in malha["geojson"]["features"] if m["properties"]["uf"] in ufs]}
     todos = [m["id"] for m in geo["features"]]
@@ -223,7 +230,7 @@ def mapa_pintado(dados, medida, malha, vista, selecionado=None, formatador=None,
     return fig
 
 
-def mapa(dados, medida, malha, vista, selecionado=None, com_ruas=False, formatador=None,
+def mapa(dados, medida, malha, ufs, selecionado=None, com_ruas=False, formatador=None,
          cores=None, altura=600):
     """Bolhas por município. `dados` precisa de cod_municipio, municipio, uf e das métricas.
 
@@ -231,9 +238,8 @@ def mapa(dados, medida, malha, vista, selecionado=None, com_ruas=False, formatad
     com_ruas=True: mapa de ruas (OpenStreetMap/CARTO) por baixo; precisa de internet e WebGL.
     cores: (coluna, {valor: cor}) para colorir as bolhas; sem isso, a cor é o estado.
     """
-    ufs = ["PR", "SC", "RS"] if vista == "Sul" else [vista]
     camadas = _bolhas(dados, medida, malha, selecionado, formatador, cores)
-    lon_min, lon_max, lat_min, lat_max = VISTAS[vista]
+    lon_min, lon_max, lat_min, lat_max = _enquadramento(malha, ufs)
     fig = go.Figure()
 
     if com_ruas:
@@ -246,7 +252,8 @@ def mapa(dados, medida, malha, vista, selecionado=None, com_ruas=False, formatad
         centro = dict(lon=(lon_min + lon_max) / 2, lat=(lat_min + lat_max) / 2)
         fig.update_layout(
             **{**_BASE, "dragmode": "pan"}, height=altura,
-            map=dict(style="carto-positron", center=centro, zoom=ZOOM_RUAS[vista]),
+            map=dict(style="carto-positron", center=centro,
+                     zoom=_zoom_para(lon_min, lon_max, lat_min, lat_max)),
         )
         return fig
 
@@ -270,7 +277,8 @@ def mapa(dados, medida, malha, vista, selecionado=None, com_ruas=False, formatad
     fig.update_layout(
         **{**_BASE, "dragmode": "pan"}, height=altura,
         xaxis=dict(visible=False, range=[lon_min, lon_max]),
-        # 1 grau de longitude vale menos que 1 de latitude nessa região (~cos 27°)
-        yaxis=dict(visible=False, range=[lat_min, lat_max], scaleanchor="x", scaleratio=1 / 0.89),
+        # Longe do equador, 1 grau de longitude vale menos que 1 de latitude (cos da latitude)
+        yaxis=dict(visible=False, range=[lat_min, lat_max], scaleanchor="x",
+                   scaleratio=1 / math.cos(math.radians((lat_min + lat_max) / 2))),
     )
     return fig

@@ -6,13 +6,15 @@ mesmo item desmarca. Os filtros ficam no st.session_state.
 
 import streamlit as st
 
+from dashboard.brasil import estados_do_local
+
 # Filtros que só existem em uma das tabelas resumidas
 SO_MUNICIPIO = ["regiao", "cod_municipio"]
 SO_CID = ["cid"]
 SO_PERFIL = ["sexo", "faixa_etaria", "raca"]
 
 PADRAO = {
-    "f_uf": "Sul",
+    "f_uf": "Brasil",
     "f_proc": "Todos",
     "f_sistema": "Todos",
     "regiao": None,
@@ -40,7 +42,7 @@ def definir(coluna, valor):
     s = st.session_state
 
     if coluna == "uf":
-        s.f_uf = "Sul" if s.f_uf == valor else valor
+        s.f_uf = "Brasil" if s.f_uf == valor else valor
     elif coluna == "capitulo_cid":
         s.f_sistema = "Todos" if s.f_sistema == valor else valor
     elif coluna == "tipo_procedimento":
@@ -92,7 +94,7 @@ def atuais(ano):
     """Filtros no formato coluna -> valor, prontos para o dados.recorte()."""
     s = st.session_state
     return {
-        "uf": ["PR", "SC", "RS"] if s.f_uf == "Sul" else [s.f_uf],
+        "uf": estados_do_local(s.f_uf),
         "ano": ano,
         "tipo_procedimento": s.f_proc,
         "capitulo_cid": s.f_sistema,

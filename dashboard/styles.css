@@ -52,11 +52,8 @@ header[data-testid="stHeader"] [aria-current="page"] { background: rgba(255, 255
 .st-key-tile-uf { background: #E7F4F8; }
 .estado { display: flex; align-items: center; gap: 10px; justify-content: center; }
 .estado .bandeira { border-radius: 3px; box-shadow: 0 0 0 1px rgba(0, 0, 0, .15); }
-.estado span { font-size: 2rem; font-weight: 800; color: #1F2D3D; }
-/* Os quatro botões em grade 2x2, ao lado da bandeira */
-.st-key-tile-uf [data-testid="stButtonGroup"] > div { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
-.st-key-tile-uf [data-testid="stButtonGroup"] button { min-height: 30px; padding: 0 6px; border-radius: 4px !important; }
-.st-key-tile-uf [data-testid="stButtonGroup"] button p { font-size: .85rem; font-weight: 700; }
+.estado .sigla { font-size: 2rem; font-weight: 800; color: #1F2D3D; }
+.estado .sigla.longa { font-size: 1.05rem; }
 
 .kpi, .atualizado { display: flex; align-items: center; justify-content: center; gap: 14px; }
 .kpi-icone, .atualizado-icone { font-size: 2.3rem; line-height: 1; }

@@ -5,9 +5,18 @@ from datetime import date
 import streamlit as st
 
 from dashboard import filtros, icones
+from dashboard.brasil import (
+    CORES_REGIAO,
+    ESTADOS,
+    LOCAIS,
+    REGIAO_DO_ESTADO,
+    REGIOES,
+    e_um_estado,
+    nome_do_local,
+)
 from dashboard.componentes import LOGO, NOMES_FILTRO, html, tile
 from dashboard.medidas import MINIMO_PARA_RAZAO, formatar, total, variacao
-from dashboard.painel import MESES, NOMES_UF, Painel
+from dashboard.painel import MESES, Painel
 
 AJUDA = f"""
 **Como usar**
@@ -18,7 +27,8 @@ AJUDA = f"""
 **Regras**
 - Internação = AIH principal aprovada (não conta AIH de continuação).
 - Município = onde fica o hospital, exceto na página Fluxo, que também mostra onde o paciente mora.
-- Região = região geográfica intermediária do IBGE.
+- Região = região geográfica intermediária do IBGE (no Brasil ou numa região do país, o painel
+  agrupa por estado).
 - Valores em R$, sem correção pela inflação. É o valor pago pelo SUS pela internação (AIH),
   não o gasto total com saúde.
 - A comparação com o ano anterior usa os mesmos meses nos dois anos.
@@ -33,11 +43,24 @@ identificam o paciente).
 """
 
 
-def _sem_vazio(chave, padrao):
-    # Clicar no botão já ativo deixa o controle vazio; volta para o padrão
-    if st.session_state[chave] is None:
-        st.session_state[chave] = padrao
+def _contar_clique():
     st.session_state.versao += 1
+
+
+def _rotulo_do_local(local):
+    if e_um_estado(local):
+        return f"{local} · {ESTADOS[local]}"
+    return local if local == "Brasil" else f"Região {local}"
+
+
+def _selo_do_local(local):
+    """Bandeira (ou selo colorido) e a sigla grande, como no Power BI."""
+    regiao = local if local in REGIOES else REGIAO_DO_ESTADO.get(local)
+    cor = CORES_REGIAO.get(regiao, "#1F4E79")
+    sigla = local if e_um_estado(local) else ("BR" if local == "Brasil" else local)
+    classe = "sigla" if len(sigla) <= 2 else "sigla longa"
+    return (f'<div class="estado">{icones.selo(local, cor)}'
+            f'<span class="{classe}">{sigla}</span></div>')
 
 
 def cabecalho(controle):
@@ -51,13 +74,12 @@ def cabecalho(controle):
         html(f'<div class="logo">{LOGO}</div>')
 
     with c_uf, tile("uf"):
-        bandeira, botoes = st.columns([1, 1.25], vertical_alignment="center")
+        bandeira, escolha = st.columns([1, 1.3], vertical_alignment="center")
         with bandeira:
-            uf = st.session_state.f_uf
-            html(f'<div class="estado">{icones.BANDEIRAS[uf]}<span>{uf}</span></div>')
-        with botoes:
-            st.segmented_control("Estado", ["Sul", "PR", "SC", "RS"], key="f_uf", on_change=_sem_vazio,
-                                 args=("f_uf", "Sul"), label_visibility="collapsed")
+            html(_selo_do_local(st.session_state.f_uf))
+        with escolha:
+            st.selectbox("Local", LOCAIS, key="f_uf", on_change=_contar_clique,
+                         format_func=_rotulo_do_local, label_visibility="collapsed")
 
     with c_ano, tile("ano"):
         ano = int(st.selectbox("📅 Ano", anos, key="ano"))
@@ -68,7 +90,7 @@ def cabecalho(controle):
     with c_titulo, tile("titulo"):
         html(f"""
             <div class="titulo-painel">Informações Hospitalares (SUS/SIH)</div>
-            <div class="subtitulo-painel">{NOMES_UF[st.session_state.f_uf]} · {periodo}</div>""")
+            <div class="subtitulo-painel">{nome_do_local(st.session_state.f_uf)} · {periodo}</div>""")
 
     with c_ajuda, tile("ajuda"), st.popover("?"):
         st.markdown(AJUDA)
@@ -127,8 +149,8 @@ def filtros_ativos(nomes_municipio):
     """Etiquetas dos filtros em uso, cada uma com ✕ para tirar."""
     s = st.session_state
     ativos = []
-    if s.f_uf != "Sul":
-        ativos.append(("f_uf", f"Estado: {s.f_uf}"))
+    if s.f_uf != "Brasil":
+        ativos.append(("f_uf", f"Local: {_rotulo_do_local(s.f_uf)}"))
     if s.f_proc != "Todos":
         ativos.append(("f_proc", f"Procedimento: {s.f_proc}"))
     if s.f_sistema != "Todos":

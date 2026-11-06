@@ -40,9 +40,18 @@ BANDEIRAS = {
         '<polygon points="22,0 30,0 30,5 8,20 0,20 0,15" fill="#D52B1E"/>'
         '<polygon points="30,5 30,20 8,20" fill="#F2C400"/>'
         '<circle cx="15" cy="10" r="3.2" fill="#FFFFFF"/>'),
-    "Sul": _BANDEIRA.format(
-        '<rect width="30" height="20" rx="2" fill="#E7F4F8"/>'
-        '<rect x="3" y="3" width="24" height="4" rx="1" fill="#2E86AB"/>'
-        '<rect x="3" y="8" width="24" height="4" rx="1" fill="#E4572E"/>'
-        '<rect x="3" y="13" width="24" height="4" rx="1" fill="#F3A712"/>'),
+    "Brasil": _BANDEIRA.format(
+        '<rect width="30" height="20" fill="#009C3B"/>'
+        '<polygon points="15,2.5 27,10 15,17.5 3,10" fill="#FFDF00"/>'
+        '<circle cx="15" cy="10" r="4.3" fill="#002776"/>'),
 }
+
+
+def selo(local, cor):
+    """Bandeira do local quando temos uma; senão, um selo na cor da região do Brasil."""
+    if local in BANDEIRAS:
+        return BANDEIRAS[local]
+    return _BANDEIRA.format(
+        f'<rect width="30" height="20" rx="3" fill="{cor}"/>'
+        '<circle cx="15" cy="9" r="4" fill="none" stroke="#FFFFFF" stroke-width="1.6"/>'
+        '<path d="M15 13 L15 17" stroke="#FFFFFF" stroke-width="1.6"/>')

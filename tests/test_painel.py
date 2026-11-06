@@ -55,7 +55,7 @@ def test_filtro_aparece_como_etiqueta(pasta_falsa):
     teste = abrir(f_uf="SC", f_sistema="Circulatório", sexo="Feminino")
     assert not teste.exception
     etiquetas = [b.label for b in teste.button]
-    assert any("Estado: SC" in e for e in etiquetas)
+    assert any("Local: SC" in e for e in etiquetas)
     assert any("Sexo: Feminino" in e for e in etiquetas)
 
 

@@ -103,7 +103,7 @@ def test_clicar_de_novo_desmarca(sessao):
     filtros.definir("uf", "SC")
     assert sessao.f_uf == "SC"
     filtros.definir("uf", "SC")
-    assert sessao.f_uf == "Sul"
+    assert sessao.f_uf == "Brasil"
 
 
 def test_municipio_e_cid_nao_ficam_juntos(sessao):

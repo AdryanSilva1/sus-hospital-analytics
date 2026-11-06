@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 from dashboard.dados import filtros_fora, recorte, tabela_principal
 
-NOMES_UF = {"Sul": "Região Sul", "PR": "Paraná", "SC": "Santa Catarina", "RS": "Rio Grande do Sul"}
 MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
 
 
