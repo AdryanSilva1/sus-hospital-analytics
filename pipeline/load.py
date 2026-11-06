@@ -3,7 +3,7 @@ from datetime import date
 
 import pandas as pd
 
-from pipeline.config import PASTA_PROCESSADOS, TABELAS, UFS, arquivo_da_tabela
+from pipeline.config import PASTA_PROCESSADOS, TABELAS, arquivo_da_tabela
 
 
 def _ler(arquivo):
@@ -48,11 +48,6 @@ def salvar_ano(resumos, uf, ano, meses, ultimo_mes):
     _salvar(pd.concat([_sem_o_ano(_ler(arquivo), ano), linha], ignore_index=True), arquivo)
 
 
-def ler_tabela(nome):
-    """Junta os arquivos de todos os estados de uma tabela."""
-    partes = [_ler(arquivo_da_tabela(nome, uf)) for uf in UFS]
-    partes = [p for p in partes if not p.empty]
-    return pd.concat(partes, ignore_index=True) if partes else pd.DataFrame()
 
 
 def salvar_tabela(df, arquivo):

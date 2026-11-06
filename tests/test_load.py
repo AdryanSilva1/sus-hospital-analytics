@@ -19,7 +19,7 @@ def test_cada_estado_fica_no_seu_arquivo_e_o_ano_e_trocado(tmp_path, monkeypatch
 
     assert (tmp_path / "por_municipio" / "SC.parquet").exists()
     assert (tmp_path / "por_municipio" / "PR.parquet").exists()
-    municipio = load.ler_tabela("municipio")
+    municipio = pd.concat(pd.read_parquet(a) for a in (tmp_path / "por_municipio").glob("*.parquet"))
     assert municipio.set_index("uf")["internacoes"].to_dict() == {"PR": 20, "SC": 15}
     assert load.meses_salvos("SC") == {2025: 4}
 

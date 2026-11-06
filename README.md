@@ -12,7 +12,17 @@ O pipeline baixa os arquivos direto do FTP do Ministério da Saúde, limpa, resu
 Parquet. O painel só lê o resultado. Todo mês o GitHub Actions roda tudo de novo e os dados
 se atualizam sozinhos, sem nenhum download manual.
 
-<!-- Depois do deploy: link do painel ao vivo e um GIF em docs/painel.gif -->
+<!-- LINK-AO-VIVO -->
+
+![Painel com o Brasil inteiro em 2026](docs/painel.png)
+
+<details>
+<summary>Ver as outras páginas: Gastos e evolução, Fluxo de pacientes</summary>
+
+![Gastos e evolução](docs/gastos.png)
+![Fluxo de pacientes](docs/fluxo.png)
+
+</details>
 
 > 🇬🇧 [English summary below](#english-summary)
 
