@@ -5,15 +5,7 @@ from datetime import date
 import streamlit as st
 
 from dashboard import filtros, icones
-from dashboard.brasil import (
-    CORES_REGIAO,
-    ESTADOS,
-    LOCAIS,
-    REGIAO_DO_ESTADO,
-    REGIOES,
-    e_um_estado,
-    nome_do_local,
-)
+from dashboard.brasil import ESTADOS, LOCAIS, e_um_estado, nome_do_local
 from dashboard.componentes import LOGO, NOMES_FILTRO, html, tile
 from dashboard.medidas import MINIMO_PARA_RAZAO, formatar, total, variacao
 from dashboard.painel import MESES, Painel
@@ -55,12 +47,10 @@ def _rotulo_do_local(local):
 
 
 def _selo_do_local(local):
-    """Bandeira (ou selo colorido) e a sigla grande, como no Power BI."""
-    regiao = local if local in REGIOES else REGIAO_DO_ESTADO.get(local)
-    cor = CORES_REGIAO.get(regiao, "#1F4E79")
+    """Bandeira (ou selo de traço) e a sigla grande, como no Power BI."""
     sigla = local if e_um_estado(local) else ("BR" if local == "Brasil" else local)
     classe = "sigla" if len(sigla) <= 2 else "sigla longa"
-    return (f'<div class="estado">{icones.selo(local, cor)}'
+    return (f'<div class="estado">{icones.selo(local)}'
             f'<span class="{classe}">{sigla}</span></div>')
 
 
@@ -83,7 +73,7 @@ def cabecalho(controle):
                          format_func=_rotulo_do_local, label_visibility="collapsed")
 
     with c_ano, tile("ano"):
-        ano = int(st.selectbox("📅 Ano", anos, key="ano"))
+        ano = int(st.selectbox("Ano", anos, key="ano"))
 
     # Último mês que todos os estados já publicaram (alguns podem estar um mês à frente)
     meses_do_ano = controle.loc[controle["ano"] == ano, "ultimo_mes"]
@@ -104,7 +94,7 @@ def cabecalho(controle):
     with c_atual, tile("atualizado"):
         html(f"""
             <div class="atualizado">
-                <div class="atualizado-icone">🗓️</div>
+                <div class="atualizado-icone">{icones.svg(icones.CARTOES["atualizado"], 30)}</div>
                 <div>
                     <div class="atualizado-rotulo">Atualizado em</div>
                     <div class="atualizado-data">{atualizado:%d/%m/%Y}</div>
@@ -124,13 +114,15 @@ def numero_principal(espaco, painel):
         if mudanca:
             detalhe = f'<div class="kpi-detalhe">{mudanca} vs {painel.ano - 1}</div>'
 
+    # Óbitos é a única medida com cor própria (vermelho)
+    classe = "kpi-valor obito" if medida in ("Óbitos", "Porcentagem de Óbitos") else "kpi-valor"
     with espaco, tile("kpi"):
         html(f"""
             <div class="kpi">
-                <div class="kpi-icone">{icones.MEDIDAS[medida]}</div>
+                <div class="kpi-icone">{icones.svg(icones.MEDIDAS[medida], 30)}</div>
                 <div>
                     <div class="kpi-rotulo">{medida}</div>
-                    <div class="kpi-valor">{formatar(total(painel.dados(), medida), medida)}</div>
+                    <div class="{classe}">{formatar(total(painel.dados(), medida), medida)}</div>
                     {detalhe}
                 </div>
             </div>""")
@@ -143,9 +135,10 @@ def _escolher_sistema(sistema):
 def sistemas():
     """Linha de botões com os sistemas do corpo (filtram tudo)."""
     escolhido = st.session_state.f_sistema
+    # O ícone de cada botão entra pelo CSS (icones.css()), achado pela key sistema-<posição>
     with st.container(horizontal=True, key="sistemas", gap="small"):
-        for nome in icones.BOTOES:
-            st.button(nome, icon=icones.sistema(nome), key=f"sistema-{nome}",
+        for i, nome in enumerate(icones.BOTOES):
+            st.button(nome, key=f"sistema-{i}",
                       type="primary" if nome == escolhido else "secondary",
                       on_click=_escolher_sistema, args=(nome,), width="stretch")
 

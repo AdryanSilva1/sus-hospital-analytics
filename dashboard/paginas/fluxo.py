@@ -21,20 +21,20 @@ def numeros(fluxo, municipio):
 
     with st.container(horizontal=True, key="cartoes-fluxo"):
         if municipio is None:
-            cartao("🏥", "Internações no período", numero(fluxo["internacoes"].sum()))
-            cartao("🏙️", "Internações de quem mora em outra cidade",
+            cartao("hospital", "Internações no período", numero(fluxo["internacoes"].sum()))
+            cartao("cidade", "Internações de quem mora em outra cidade",
                    _parte(fluxo.loc[de_fora, "internacoes"].sum(), fluxo["internacoes"].sum()))
             outro_estado = fluxo["cod_residencia"].str[:2] != fluxo["cod_municipio"].str[:2]
-            cartao("🗺️", "Internações de quem mora em outro estado",
+            cartao("mapa", "Internações de quem mora em outro estado",
                    _parte(fluxo.loc[outro_estado, "internacoes"].sum(), fluxo["internacoes"].sum()))
             return
 
         atendidos = fluxo[fluxo["cod_municipio"] == municipio]
         moradores = fluxo[fluxo["cod_residencia"] == municipio]
-        cartao("🏥", "Pacientes internados aqui", numero(atendidos["internacoes"].sum()))
-        cartao("🚗", "…que moram em outra cidade",
+        cartao("hospital", "Pacientes internados aqui", numero(atendidos["internacoes"].sum()))
+        cartao("carro", "…que moram em outra cidade",
                _parte(atendidos.loc[de_fora, "internacoes"].sum(), atendidos["internacoes"].sum()))
-        cartao("↗️", "Moradores daqui internados em outra cidade",
+        cartao("saida", "Moradores daqui internados em outra cidade",
                _parte(moradores.loc[de_fora, "internacoes"].sum(), moradores["internacoes"].sum()))
 
 

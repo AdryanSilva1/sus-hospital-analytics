@@ -38,29 +38,26 @@ def filtros_do_paciente():
 
 
 def lista_de_medidas():
+    # O ícone de cada opção entra pelo CSS (icones.css())
     st.radio("Medida", list(MEDIDAS), key="w_medida", label_visibility="collapsed",
-                 index=list(MEDIDAS).index(st.session_state.medida),
-             format_func=lambda m: f"{icones.MEDIDAS[m]}  {m}",
+             index=list(MEDIDAS).index(st.session_state.medida),
              on_change=lambda: st.session_state.update(medida=st.session_state.w_medida))
 
 
 @dataclass
 class Grupo:
     """Como o primeiro gráfico agrupa: por estado (Brasil ou região do país) ou
-    pelas regiões do IBGE (um estado só). O mapa e os municípios usam as mesmas cores."""
+    pelas regiões do IBGE (um estado só)."""
     coluna: str     # "uf" ou "regiao"
     rotulo: str     # "estado" ou "região"
-    cores: dict     # valor da coluna -> cor
+    cor: object     # cor das barras e bolhas, no formato do visuais.barras()
 
 
 def agrupamento(painel):
     if len(painel.ufs) > 1:
-        return Grupo("uf", "estado", visuais.CORES_UF)
-
-    # Cor de cada região, da que tem mais internações para a que tem menos
-    por_regiao = calcular(painel.dados("municipio", ignorar=["regiao", "cod_municipio"]),
-                          ["regiao"], "Internações")
-    return Grupo("regiao", "região", visuais.cores_por(list(por_regiao["regiao"])))
+        return Grupo("uf", "estado", "uf")
+    regioes = sorted(painel.dados("municipio", ignorar=["regiao", "cod_municipio"])["regiao"].unique())
+    return Grupo("regiao", "região", ("regiao", visuais.cores_das_regioes(regioes)))
 
 
 def por_grupo(painel, grupo):
@@ -73,8 +70,7 @@ def por_grupo(painel, grupo):
     else:
         rotulo, escolhido = "regiao", st.session_state.regiao
 
-    fig = visuais.barras(df, rotulo, painel.medida, grupo.coluna, escolhido,
-                         cor=(grupo.coluna, grupo.cores))
+    fig = visuais.barras(df, rotulo, painel.medida, grupo.coluna, escolhido, cor=grupo.cor)
     grafico(fig, "painel-grupo", grupo.coluna)
 
 
@@ -85,7 +81,7 @@ def por_municipio(painel, grupo):
     if grupo.coluna == "uf":  # no país inteiro, o nome sozinho pode repetir
         df["municipio"] = df["municipio"] + " (" + df["uf"] + ")"
     fig = visuais.barras(df, "municipio", painel.medida, "cod_municipio",
-                         st.session_state.cod_municipio, cor=(grupo.coluna, grupo.cores))
+                         st.session_state.cod_municipio, cor=grupo.cor)
     grafico(fig, "painel-municipio", "cod_municipio")
 
 
@@ -106,8 +102,8 @@ def mapa(painel, grupo):
     df = calcular(painel.dados("municipio", ignorar=["cod_municipio"]),
                   ["cod_municipio", "municipio", "regiao", "uf"], painel.medida)
     fig = visuais.mapa(tirar_pequenos(df, painel.medida), painel.medida, malha, painel.ufs,
-                       st.session_state.cod_municipio, com_ruas=fundo == "Ruas",
-                       cores=(grupo.coluna, grupo.cores), altura=ALTURA_MAPA)
+                       st.session_state.cod_municipio, com_ruas=fundo == "Ruas", altura=ALTURA_MAPA,
+                       cor=grupo.cor)
     grafico(fig, "painel-mapa", "cod_municipio", zoom=True)
 
 

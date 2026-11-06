@@ -4,21 +4,12 @@ import html as html_seguro
 
 import streamlit as st
 
-from dashboard import filtros
+from dashboard import filtros, icones
 from dashboard.dados import filtros_fora
 from dashboard.medidas import MEDIDAS, formatar
 from dashboard.visuais import CONFIG
 
-LOGO = """
-<svg width="64" height="64" viewBox="0 0 64 64">
-  <circle cx="18" cy="40" r="6" fill="#9DBBD6"/><path d="M8 58c0-7 4.5-11 10-11s10 4 10 11z" fill="#9DBBD6"/>
-  <circle cx="46" cy="40" r="6" fill="#9DBBD6"/><path d="M36 58c0-7 4.5-11 10-11s10 4 10 11z" fill="#9DBBD6"/>
-  <circle cx="32" cy="42" r="7" fill="#1F4E79"/><path d="M20 62c0-8 5.5-13 12-13s12 5 12 13z" fill="#1F4E79"/>
-  <path d="M32 31s-13-7.5-13-16a6.8 6.8 0 0 1 13-3 6.8 6.8 0 0 1 13 3c0 8.5-13 16-13 16z" fill="#F06B5B"/>
-  <rect x="29.5" y="10" width="5" height="14" rx="1" fill="#fff"/>
-  <rect x="25" y="14.5" width="14" height="5" rx="1" fill="#fff"/>
-</svg>
-"""
+LOGO = icones.svg('<rect x="3" y="3" width="18" height="18" rx="5"/><path d="M12 8v8M8 12h8"/>', 44)
 
 NOMES_FILTRO = {
     "regiao": "região", "cod_municipio": "município", "cid": "doença (CID)", "sexo": "sexo",
@@ -50,11 +41,14 @@ def titulo(texto, ajuda=None):
 
 
 def cartao(icone, rotulo, valor, detalhe=None):
-    """Cartão de número, no mesmo estilo do número principal do topo."""
+    """Cartão de número, no mesmo estilo do número principal do topo.
+
+    icone: nome de um ícone de icones.CARTOES
+    """
     linha_detalhe = f'<div class="cartao-detalhe">{detalhe}</div>' if detalhe else ""
     html(f"""
         <div class="cartao">
-            <div class="cartao-icone">{icone}</div>
+            <div class="cartao-icone">{icones.svg(icones.CARTOES[icone], 22)}</div>
             <div>
                 <div class="cartao-rotulo">{rotulo}</div>
                 <div class="cartao-valor">{valor}</div>
@@ -73,7 +67,7 @@ def aviso(painel, nome, nao_tem=(), tem=()):
     fora += [c for c in nao_tem if painel.filtros.get(c) not in (None, "Todos")]
     if fora:
         nomes = ", ".join(NOMES_FILTRO[c] for c in fora)
-        st.caption(f"ℹ️ Este visual não é separado por {nomes}; mostra o total sem esse filtro.")
+        st.caption(f":material/info: Este visual não é separado por {nomes}; mostra o total sem esse filtro.")
 
 
 def grafico(fig, nome=None, coluna=None, zoom=False):
@@ -127,7 +121,8 @@ def tabela_pbi(linhas, colunas, medida, destaque=None, total=None):
     """Tabela HTML no estilo do Power BI: cabeçalho escuro e barra de dados no indicador.
 
     linhas: lista de dicts com as chaves de `colunas` e `valor`
-    colunas: lista de (chave, título, classe css)
+    colunas: lista de (chave, título, classe css). A coluna de classe "ico" já vem
+             em SVG (icones.py) e por isso não passa pelo escape.
     """
     maior = max((linha["valor"] for linha in linhas), default=0) or 1
     cabecalho = "".join(f'<th class="{c}">{html_seguro.escape(t)}</th>' for _, t, c in colunas)
@@ -135,8 +130,9 @@ def tabela_pbi(linhas, colunas, medida, destaque=None, total=None):
     corpo = []
     for linha in linhas:
         classe = ' class="destaque"' if destaque and destaque in linha.values() else ""
-        celulas = "".join(f'<td class="{c}">{html_seguro.escape(str(linha[k]))}</td>'
-                          for k, _, c in colunas)
+        celulas = "".join(
+            f'<td class="{c}">{linha[k] if c == "ico" else html_seguro.escape(str(linha[k]))}</td>'
+            for k, _, c in colunas)
         largura = linha["valor"] / maior * 100
         corpo.append(f'<tr{classe}>{celulas}<td class="num barra"><div style="width:{largura:.1f}%">'
                      f'</div><span>{formatar(linha["valor"], medida)}</span></td></tr>')

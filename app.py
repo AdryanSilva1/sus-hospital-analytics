@@ -13,13 +13,14 @@ from pathlib import Path
 
 import streamlit as st
 
-from dashboard import topo
+from dashboard import icones, topo
 from dashboard.componentes import html
 from dashboard.dados import carregar
 from dashboard.paginas import PAGINAS
 
-st.set_page_config(page_title="SUS Analytics", page_icon="🏥", layout="wide")
-html(f"<style>{(Path(__file__).parent / 'dashboard' / 'styles.css').read_text(encoding='utf-8')}</style>")
+st.set_page_config(page_title="SUS Analytics", page_icon=":material/local_hospital:", layout="wide")
+estilo = (Path(__file__).parent / "dashboard" / "styles.css").read_text(encoding="utf-8")
+html(f"<style>{estilo}\n{icones.css()}</style>")
 
 try:
     tabelas, controle = carregar()

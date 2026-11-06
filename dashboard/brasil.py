@@ -20,13 +20,7 @@ ESTADOS = {
     "TO": "Tocantins",
 }
 
-# Uma cor por região do Brasil; os estados usam a cor da sua região
-CORES_REGIAO = {
-    "Norte": "#2A9D8F", "Nordeste": "#F4A261", "Centro-Oeste": "#E9C46A",
-    "Sudeste": "#457B9D", "Sul": "#E76F51",
-}
 REGIAO_DO_ESTADO = {uf: regiao for regiao, ufs in REGIOES.items() for uf in ufs}
-CORES_ESTADO = {uf: CORES_REGIAO[regiao] for uf, regiao in REGIAO_DO_ESTADO.items()}
 
 # Do código IBGE do município (2 primeiros dígitos) para a sigla do estado
 ESTADO_DO_CODIGO = {str(codigo): uf for uf, codigo in CODIGOS_UF.items()}

@@ -41,11 +41,11 @@ def numeros(painel):
         ]
 
     with st.container(horizontal=True, key="cartoes-gastos"):
-        cartao("💵", "Gasto total com internações", formatar(gasto_total, GASTO), detalhes[0])
-        cartao("🧾", "Gasto médio por internação", formatar(total(base, "Valor Médio AIH"), GASTO),
+        cartao("gasto", "Gasto total com internações", formatar(gasto_total, GASTO), detalhes[0])
+        cartao("recibo", "Gasto médio por internação", formatar(total(base, "Valor Médio AIH"), GASTO),
                detalhes[1])
-        cartao("📅", "Gasto por dia internado", formatar(_gasto_por_dia(base), GASTO), detalhes[2])
-        cartao("🩺", "Parte gasta em cirurgias", porcentagem(parte),
+        cartao("calendario", "Gasto por dia internado", formatar(_gasto_por_dia(base), GASTO), detalhes[2])
+        cartao("cirurgia", "Parte gasta em cirurgias", porcentagem(parte),
                f"{formatar(cirurgias, GASTO)} em cirurgias")
 
 
@@ -60,17 +60,18 @@ def mes_a_mes(painel):
 
 def por_ano(painel):
     df = calcular(painel.dados(ignorar=["ano"]), ["ano"], GASTO).sort_values("ano")
-    grafico(visuais.colunas(df, "ano", GASTO, altura=165))
+    grafico(visuais.colunas(df, "ano", GASTO, destaque=painel.ano, altura=165))
     if painel.anos[0] == painel.ano and painel.ultimo_mes < 12:
         st.caption(f"{painel.ano} ainda está incompleto (dados até {MESES[painel.ultimo_mes - 1]}).")
 
 
-def por_coluna(painel, coluna, rotulo, nome, cor=visuais.AZUL, quantos=None):
+def por_coluna(painel, coluna, rotulo, nome, quantos=None):
     df = tirar_pequenos(calcular(painel.dados(ignorar=[coluna]), [coluna], GASTO), GASTO)
     if quantos:
         df = df.head(quantos)
     if coluna == "uf":
         df[rotulo] = df["uf"].map(ESTADOS)
+    cor = "uf" if coluna == "uf" else None
     grafico(visuais.barras(df, rotulo, GASTO, coluna, cor=cor), nome, coluna)
 
 
@@ -78,7 +79,8 @@ def top_municipios(painel):
     df = calcular(painel.dados("municipio", ignorar=["cod_municipio"]),
                   ["cod_municipio", "municipio", "uf"], GASTO).head(15)
     grafico(visuais.barras(df, "municipio", GASTO, "cod_municipio", st.session_state.cod_municipio,
-                           cor="uf"), "gasto-municipio", "cod_municipio")
+                           cor="uf"),
+            "gasto-municipio", "cod_municipio")
     aviso(painel, "municipio")
 
 
@@ -105,7 +107,7 @@ def mostrar(painel):
         por_ano(painel)
     with estado, tile("gasto-uf", ALTURA_FAIXA_1):
         titulo("Gasto por estado")
-        por_coluna(painel, "uf", "estado", "gasto-uf", cor="uf")
+        por_coluna(painel, "uf", "estado", "gasto-uf")
     with procedimento, tile("gasto-proc", ALTURA_FAIXA_1):
         titulo("Gasto por tipo de procedimento")
         por_coluna(painel, "tipo_procedimento", "tipo_procedimento", "gasto-proc")

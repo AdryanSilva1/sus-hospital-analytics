@@ -182,14 +182,13 @@ def _estados(municipios):
     return {"type": "FeatureCollection", "features": estados}
 
 
-def _linhas(geojson):
-    """Bordas de cada feature como x e y, com None entre uma e outra (um traço só no Plotly)."""
+def _linhas(feature):
+    """Bordas de uma feature como x e y, com None entre um anel e outro (um traço só no Plotly)."""
     xs, ys = [], []
-    for feature in geojson["features"]:
-        for poligono in feature["geometry"]["coordinates"]:
-            for anel in poligono:
-                xs.extend([p[0] for p in anel] + [None])
-                ys.extend([p[1] for p in anel] + [None])
+    for poligono in feature["geometry"]["coordinates"]:
+        for anel in poligono:
+            xs.extend([p[0] for p in anel] + [None])
+            ys.extend([p[1] for p in anel] + [None])
     return xs, ys
 
 
@@ -231,7 +230,8 @@ def preparar_malha(geojson):
     contornos = {uf: _em_array(xs, ys) for uf, (xs, ys) in contornos.items()}
     estados = _estados(geojson["features"])
     return {"centros": pd.DataFrame(centros), "contornos": contornos, "geojson": geojson,
-            "estados": estados, "divisas": _em_array(*_linhas(estados))}
+            "estados": estados,
+            "divisas_por_estado": {e["id"]: _em_array(*_linhas(e)) for e in estados["features"]}}
 
 
 def _em_array(xs, ys):
