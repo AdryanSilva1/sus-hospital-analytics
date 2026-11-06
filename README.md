@@ -1,6 +1,6 @@
-# SUS Sul Analytics
+# SUS Analytics
 
-### Internações hospitalares do SUS no Paraná, Santa Catarina e Rio Grande do Sul
+### Internações hospitalares do SUS no Brasil inteiro: 27 estados, 5.570 municípios
 
 [![Testes](https://github.com/AdryanSilva1/sus-hospital-analytics/actions/workflows/testes.yml/badge.svg)](https://github.com/AdryanSilva1/sus-hospital-analytics/actions/workflows/testes.yml)
 [![Atualizar dados](https://github.com/AdryanSilva1/sus-hospital-analytics/actions/workflows/atualizar-dados.yml/badge.svg)](https://github.com/AdryanSilva1/sus-hospital-analytics/actions/workflows/atualizar-dados.yml)
@@ -24,7 +24,7 @@ se atualizam sozinhos, sem nenhum download manual.
 - Como isso mudou **mês a mês** e em comparação com o ano anterior (mesmos meses)
 - Quais doenças e sistemas do corpo mais internam e quais custam mais por internação
 - Quais cidades têm mais internações **por 100 mil habitantes**, contando onde o paciente mora
-- Como cada **região do IBGE** se compara (em SC: Florianópolis, Joinville, Blumenau, Chapecó, Criciúma, Lages e Caçador)
+- Como os **estados** se comparam e, dentro de cada estado, as **regiões do IBGE** (em SC: Florianópolis, Joinville, Blumenau, Chapecó, Criciúma, Lages e Caçador)
 - Quais cidades funcionam como **polo regional**, recebendo pacientes de outras cidades,
   e de onde vêm os pacientes de cada uma
 - Diferenças por faixa etária, sexo e raça/cor
@@ -34,7 +34,7 @@ filtra o painel inteiro. Clicar de novo, ou no ✕ do filtro, desmarca.
 
 | Página | O que mostra |
 |---|---|
-| **Painel** | No estilo Power BI: número principal com variação contra o ano anterior, botões dos sistemas do corpo, barras por região do IBGE e por município, mapa com ruas, tabela de diagnósticos (CID-10), filtros de faixa etária, raça/cor, sexo e procedimento, sete medidas e tabela por sistema |
+| **Painel** | No estilo Power BI: seletor de local (Brasil, as 5 regiões do país ou um dos 27 estados), número principal com variação contra o ano anterior, botões dos sistemas do corpo, barras por estado (ou por região do IBGE dentro de um estado) e por município, mapa com ruas, tabela de diagnósticos (CID-10), filtros de faixa etária, raça/cor, sexo e procedimento, sete medidas e tabela por sistema |
 | **Gastos e evolução** | Valor pago mês a mês × ano anterior, por ano, estado, sistema, procedimento e município; doenças mais caras por internação |
 | **Fluxo de pacientes** | Onde o paciente mora × onde foi internado, taxa por 100 mil hab. e polos regionais |
 
@@ -51,11 +51,13 @@ flowchart LR
     T --> L[load.py<br/>Parquet por ano]
     L --> P[(data/processados)]
     P --> D[Painel Streamlit<br/>app.py + dashboard/]
-    G[GitHub Actions<br/>todo dia 15] -.roda.-> E
+    G[GitHub Actions<br/>todo dia 15, 8 jobs em paralelo] -.roda.-> E
 ```
 
-O pipeline gera cinco tabelas resumidas por ano e estado, cada uma com o corte que o
-painel precisa:
+O pipeline gera cinco tabelas resumidas por ano, cada uma com o corte que o painel precisa.
+Cada tabela fica numa pasta, com **um arquivo por estado** (ex.: `por_municipio/SP.parquet`):
+assim o GitHub Actions processa grupos de estados ao mesmo tempo, em jobs separados, sem um
+mexer no arquivo do outro.
 
 | Tabela | Corte | Usada em |
 |---|---|---|
@@ -113,7 +115,9 @@ pip install -r requirements-pipeline.txt
 
 ```bash
 python -m pipeline.run --uf SC --ano-inicial 2025   # teste rápido
-python -m pipeline.run                              # tudo: PR, SC e RS desde 2019
+python -m pipeline.run                              # tudo: os 27 estados desde 2019
+python -m pipeline.run --uf PR SC RS                # só alguns estados
+python -m pipeline.run --so-apoio                   # só municípios, mapa e população (IBGE)
 ```
 
 **2. Abrir o painel**
@@ -153,16 +157,17 @@ sus-hospital-analytics/
 │   ├── topo.py                 ← cabeçalho, sistemas do corpo e filtros ativos
 │   ├── componentes.py          ← blocos, cartões, gráficos e tabelas clicáveis
 │   ├── visuais.py              ← figuras Plotly (barras, linha, mapa)
-│   ├── icones.py               ← ícone de cada sistema do corpo e de cada medida
+│   ├── icones.py               ← ícones dos sistemas do corpo, das medidas e bandeiras
+│   ├── brasil.py               ← estados, regiões do país e o que cada local do seletor cobre
 │   ├── paginas/                ← uma página por arquivo
 │   └── styles.css
 ├── tests/
 ├── data/
 │   ├── brutos/                 ← .dbc baixados (fora do Git)
-│   └── processados/            ← Parquet usado pelo painel
+│   └── processados/            ← usado pelo painel: por_<tabela>/<UF>.parquet + tabelas do IBGE
 └── .github/workflows/
     ├── testes.yml              ← ruff + pytest a cada push
-    └── atualizar-dados.yml     ← pipeline todo dia 15
+    └── atualizar-dados.yml     ← pipeline todo dia 15, em 8 grupos de estados em paralelo
 ```
 
 ---
@@ -183,8 +188,8 @@ sus-hospital-analytics/
 
 ## English summary
 
-**SUS Sul Analytics** is an end-to-end data project on public hospital admissions (SUS) in
-Southern Brazil (Paraná, Santa Catarina and Rio Grande do Sul).
+**SUS Analytics** is an end-to-end data project on public hospital admissions (SUS) across
+all of Brazil: 27 states and 5,570 municipalities.
 
 - **Pipeline (ETL):** downloads the official DATASUS hospital records straight from the Ministry
   of Health FTP, cleans and aggregates them into five Parquet tables, and enriches them with

@@ -1,5 +1,5 @@
 # =============================================================
-# app.py — SUS Sul Analytics
+# app.py — SUS Analytics
 #
 # Como rodar:
 #   pip install -r requirements.txt
@@ -18,7 +18,7 @@ from dashboard.componentes import html
 from dashboard.dados import carregar
 from dashboard.paginas import PAGINAS
 
-st.set_page_config(page_title="SUS Sul Analytics", page_icon="🏥", layout="wide")
+st.set_page_config(page_title="SUS Analytics", page_icon="🏥", layout="wide")
 html(f"<style>{(Path(__file__).parent / 'dashboard' / 'styles.css').read_text(encoding='utf-8')}</style>")
 
 try:
