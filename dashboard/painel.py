@@ -46,5 +46,7 @@ class Painel:
         """
         if filtros_fora("mes", self.filtros) or self.ano - 1 not in self.anos:
             return None
+        # Os estados não publicam no mesmo ritmo: compara só os meses que todos já têm
+        atual = self.dados("mes")
         anterior = self.dados("mes", ano=self.ano - 1)
-        return self.dados("mes"), anterior[anterior["mes"] <= self.ultimo_mes]
+        return atual[atual["mes"] <= self.ultimo_mes], anterior[anterior["mes"] <= self.ultimo_mes]

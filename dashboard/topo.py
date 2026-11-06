@@ -31,7 +31,8 @@ AJUDA = f"""
   agrupa por estado).
 - Valores em R$, sem correção pela inflação. É o valor pago pelo SUS pela internação (AIH),
   não o gasto total com saúde.
-- A comparação com o ano anterior usa os mesmos meses nos dois anos.
+- A comparação com o ano anterior usa os mesmos meses nos dois anos, e só os meses que todos
+  os estados já publicaram (o DATASUS libera alguns estados antes de outros).
 - Em médias e porcentagens, itens com menos de {MINIMO_PARA_RAZAO} internações ficam fora dos rankings.
 - Município, doença e perfil do paciente vêm de tabelas separadas, por isso só dá para
   filtrar por um desses de cada vez.
@@ -84,8 +85,10 @@ def cabecalho(controle):
     with c_ano, tile("ano"):
         ano = int(st.selectbox("📅 Ano", anos, key="ano"))
 
-    ultimo_mes = int(controle.loc[controle["ano"] == ano, "ultimo_mes"].min())
-    periodo = str(ano) if ultimo_mes == 12 else f"{ano} · jan a {MESES[ultimo_mes - 1]}"
+    # Último mês que todos os estados já publicaram (alguns podem estar um mês à frente)
+    meses_do_ano = controle.loc[controle["ano"] == ano, "ultimo_mes"]
+    ultimo_mes, mes_mais_recente = int(meses_do_ano.min()), int(meses_do_ano.max())
+    periodo = str(ano) if mes_mais_recente == 12 else f"{ano} · jan a {MESES[mes_mais_recente - 1]}"
 
     with c_titulo, tile("titulo"):
         html(f"""
@@ -96,6 +99,8 @@ def cabecalho(controle):
         st.markdown(AJUDA)
 
     atualizado = date.fromisoformat(controle["atualizado_em"].max())
+    # Os números do ano somam o que cada estado já publicou; a comparação usa só os meses comuns
+    atrasados = f" (parte até {ultimo_mes:02d})" if mes_mais_recente > ultimo_mes else ""
     with c_atual, tile("atualizado"):
         html(f"""
             <div class="atualizado">
@@ -103,7 +108,7 @@ def cabecalho(controle):
                 <div>
                     <div class="atualizado-rotulo">Atualizado em</div>
                     <div class="atualizado-data">{atualizado:%d/%m/%Y}</div>
-                    <div class="atualizado-rotulo">dados até {ultimo_mes:02d}/{ano}</div>
+                    <div class="atualizado-rotulo">dados até {mes_mais_recente:02d}/{ano}{atrasados}</div>
                 </div>
             </div>""")
 
