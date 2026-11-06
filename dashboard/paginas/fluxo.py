@@ -38,8 +38,8 @@ def numeros(fluxo, municipio):
                _parte(moradores.loc[de_fora, "internacoes"].sum(), moradores["internacoes"].sum()))
 
 
-def taxa_por_residencia(painel):
-    """Internações por 100 mil habitantes, contando pela cidade onde o paciente mora."""
+def moradores(painel):
+    """Internações de cada cidade contando pelo endereço do paciente, com a população."""
     populacao = painel.tabelas["populacao"]
     if populacao is None:
         st.info("A população ainda não foi baixada. Rode `python -m pipeline.run` de novo.")
@@ -51,10 +51,45 @@ def taxa_por_residencia(painel):
           [["internacoes", "obitos", "valor_total"]].sum().reset_index()
           .rename(columns={"cod_residencia": "cod_municipio", "residencia": "municipio"}))
     df["uf"] = df["cod_municipio"].str[:2].map(ESTADO_DO_CODIGO)
-    df = df[df["uf"].isin(painel.ufs)].merge(populacao, on="cod_municipio")
-    df = df[df["populacao"] >= MINIMO_HABITANTES]
+    return df[df["uf"].isin(painel.ufs)].merge(populacao, on="cod_municipio")
+
+
+def taxa_por_residencia(moradores):
+    """Internações por 100 mil habitantes, contando pela cidade onde o paciente mora."""
+    df = moradores[moradores["populacao"] >= MINIMO_HABITANTES].copy()
     df["valor"] = por_100_mil(df["internacoes"], df["populacao"])
     return df.sort_values("valor", ascending=False)
+
+
+def taxa_por_estado(moradores):
+    """A mesma taxa somando o estado inteiro (aqui as cidades pequenas entram)."""
+    df = moradores.groupby("uf")[["internacoes", "populacao"]].sum().reset_index()
+    df["valor"] = por_100_mil(df["internacoes"], df["populacao"])
+    return df
+
+
+def mapa(painel, pessoas, taxa, municipio):
+    malha = painel.tabelas["malha"]
+    por_estado = len(pessoas) > visuais.MAXIMO_DE_MUNICIPIOS if pessoas is not None else False
+    if por_estado:
+        titulo(f"{TAXA} por estado (onde o paciente mora)",
+               "População do Censo 2022 (IBGE). Clique num estado para ver as cidades dele.")
+    else:
+        titulo(f"{TAXA} (pela cidade onde o paciente mora)",
+               f"População do Censo 2022 (IBGE). Cidades com menos de "
+               f"{numero(MINIMO_HABITANTES)} habitantes ficam de fora.")
+    if taxa is None or malha is None:
+        return
+
+    altura = ALTURA_FAIXA - 90
+    if por_estado:
+        fig = visuais.mapa_pintado_por_estado(taxa_por_estado(pessoas), TAXA, malha, painel.ufs,
+                                              formatador=decimal, altura=altura)
+        grafico(fig, "fluxo-mapa-uf", "uf", zoom=True)
+    else:
+        fig = visuais.mapa_pintado(taxa, TAXA, malha, painel.ufs, municipio,
+                                   formatador=decimal, altura=altura)
+        grafico(fig, "fluxo-mapa", "cod_municipio", zoom=True)
 
 
 def polos(fluxo):
@@ -94,16 +129,11 @@ def mostrar(painel):
             grafico(visuais.barras(df, "municipio", "Internações", "cod_municipio"),
                     "fluxo-destino", "cod_municipio")
 
-    taxa = taxa_por_residencia(painel)
+    pessoas = moradores(painel)
+    taxa = None if pessoas is None else taxa_por_residencia(pessoas)
     esq, dir_ = st.columns([1.5, 1])
     with esq, tile("fluxo-mapa", ALTURA_FAIXA):
-        titulo(f"{TAXA} (pela cidade onde o paciente mora)",
-               f"População do Censo 2022 (IBGE). Cidades com menos de "
-               f"{numero(MINIMO_HABITANTES)} habitantes ficam de fora.")
-        if taxa is not None and painel.tabelas["malha"] is not None:
-            fig = visuais.mapa_pintado(taxa, TAXA, painel.tabelas["malha"], painel.ufs,
-                                       municipio, formatador=decimal, altura=ALTURA_FAIXA - 90)
-            grafico(fig, "fluxo-mapa", "cod_municipio", zoom=True)
+        mapa(painel, pessoas, taxa, municipio)
     with dir_, tile("fluxo-polos", ALTURA_FAIXA):
         titulo("Cidades que mais recebem pacientes de fora")
         grafico(visuais.barras(polos(fluxo), "municipio", "Internações", "cod_municipio",

@@ -1,8 +1,10 @@
 """Leitura das tabelas do pipeline e recorte pelos filtros do painel."""
 
 import json
+from collections import Counter, defaultdict
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 
@@ -21,9 +23,13 @@ TABELA_DO_FILTRO = {
 }
 
 
-@st.cache_data
+@st.cache_resource
 def carregar():
-    """Lê as tabelas geradas pelo pipeline. O painel nunca busca dado no DATASUS."""
+    """Lê as tabelas geradas pelo pipeline. O painel nunca busca dado no DATASUS.
+
+    cache_resource (e não cache_data) porque com o Brasil todo são ~300 MB na memória:
+    o cache_data faz uma cópia a cada clique. As tabelas são só lidas, nunca alteradas.
+    """
     tabelas = {nome: _ler_pasta(f"por_{nome}") for nome in TABELAS}
 
     municipios = _municipios(tabelas["municipio"])
@@ -111,6 +117,82 @@ def _no_sentido_do_plotly(poligono):
     return [borda, *buracos]
 
 
+def _dentro(ponto, anel):
+    """Teste do raio: o ponto está dentro do anel?"""
+    x, y = ponto
+    dentro = False
+    for (x1, y1), (x2, y2) in zip(anel, anel[1:]):
+        if (y1 > y) != (y2 > y) and x < x1 + (y - y1) * (x2 - x1) / (y2 - y1):
+            dentro = not dentro
+    return dentro
+
+
+def _aneis_da_borda(arestas):
+    """Liga as arestas soltas (cada ponto com seus vizinhos) em anéis fechados."""
+    vizinhos = defaultdict(list)
+    for a, b in arestas:
+        vizinhos[a].append(b)
+        vizinhos[b].append(a)
+
+    aneis = []
+    while vizinhos:
+        inicio = next(iter(vizinhos))
+        anel, atual = [inicio], inicio
+        while vizinhos.get(atual):
+            proximo = vizinhos[atual].pop()
+            vizinhos[proximo].remove(atual)
+            for ponto in (atual, proximo):
+                if not vizinhos[ponto]:
+                    del vizinhos[ponto]
+            anel.append(proximo)
+            atual = proximo
+        if len(anel) >= 4:
+            aneis.append(anel)
+    return aneis
+
+
+def _estados(municipios):
+    """Junta os municípios de cada estado num polígono só.
+
+    A malha do IBGE é "encaixada": a divisa entre dois municípios do mesmo estado
+    aparece duas vezes (uma em cada um). O que aparece uma vez só é a divisa do estado.
+    """
+    arestas = defaultdict(Counter)
+    for municipio in municipios:
+        uf = municipio["properties"]["uf"]
+        for poligono in municipio["geometry"]["coordinates"]:
+            for anel in poligono:
+                for a, b in zip(anel, anel[1:]):
+                    a, b = tuple(a), tuple(b)
+                    if a != b:
+                        arestas[uf][(a, b) if a < b else (b, a)] += 1
+
+    estados = []
+    for uf, contagem in arestas.items():
+        aneis = _aneis_da_borda([aresta for aresta, n in contagem.items() if n == 1])
+        # Anel dentro de outro anel do mesmo estado é buraco (ex.: o DF dentro de Goiás)
+        bordas = [a for a in aneis if not any(_dentro(a[0], b) for b in aneis if b is not a)]
+        poligonos = [[borda, *[a for a in aneis if a is not borda and _dentro(a[0], borda)]]
+                     for borda in bordas]
+        estados.append({
+            "type": "Feature", "id": uf, "properties": {"uf": uf},
+            "geometry": {"type": "MultiPolygon",
+                         "coordinates": [_no_sentido_do_plotly(p) for p in poligonos]},
+        })
+    return {"type": "FeatureCollection", "features": estados}
+
+
+def _linhas(geojson):
+    """Bordas de cada feature como x e y, com None entre uma e outra (um traço só no Plotly)."""
+    xs, ys = [], []
+    for feature in geojson["features"]:
+        for poligono in feature["geometry"]["coordinates"]:
+            for anel in poligono:
+                xs.extend([p[0] for p in anel] + [None])
+                ys.extend([p[1] for p in anel] + [None])
+    return xs, ys
+
+
 def preparar_malha(geojson):
     """Transforma o GeoJSON do IBGE no que o mapa usa (além do próprio GeoJSON):
 
@@ -145,7 +227,15 @@ def preparar_malha(geojson):
             "lat": sum(p[1] for p in maior) / len(maior),
         })
 
-    return {"centros": pd.DataFrame(centros), "contornos": contornos, "geojson": geojson}
+    # Em array do numpy (NaN no lugar de None) o Plotly monta a figura bem mais rápido
+    contornos = {uf: _em_array(xs, ys) for uf, (xs, ys) in contornos.items()}
+    estados = _estados(geojson["features"])
+    return {"centros": pd.DataFrame(centros), "contornos": contornos, "geojson": geojson,
+            "estados": estados, "divisas": _em_array(*_linhas(estados))}
+
+
+def _em_array(xs, ys):
+    return (np.array(xs, dtype=float), np.array(ys, dtype=float))
 
 
 def recorte(tabelas, nome, filtros, ignorar=()):
@@ -155,7 +245,8 @@ def recorte(tabelas, nome, filtros, ignorar=()):
     dela (e só destacar o escolhido), como no Power BI.
     """
     df = tabelas[nome]
-    for coluna, valor in filtros.items():
+    # O ano primeiro: é o filtro que mais corta linhas, e os outros ficam mais rápidos
+    for coluna, valor in sorted(filtros.items(), key=lambda item: item[0] != "ano"):
         if coluna in ignorar or coluna not in df.columns or valor in (None, "Todos"):
             continue
         df = df[df[coluna].isin(valor)] if isinstance(valor, list) else df[df[coluna] == valor]

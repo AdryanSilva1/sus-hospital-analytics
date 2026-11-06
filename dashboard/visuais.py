@@ -2,9 +2,11 @@
 
 import math
 
+import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
 
-from dashboard.brasil import CORES_ESTADO
+from dashboard.brasil import CORES_ESTADO, ESTADOS
 from dashboard.medidas import MEDIDAS, formatar
 
 # Cada estado tem a cor da sua região do Brasil, igual em todos os visuais
@@ -136,12 +138,14 @@ def linha_mensal(atual, anterior, medida, ano, meses):
 
 def _enquadramento(malha, ufs):
     """(lon mín, lon máx, lat mín, lat máx) que cabe os estados escolhidos, com folga."""
-    xs = [x for uf in ufs for x in malha["contornos"].get(uf, ([], []))[0] if x is not None]
-    ys = [y for uf in ufs for y in malha["contornos"].get(uf, ([], []))[1] if y is not None]
-    if not xs:
+    contornos = [malha["contornos"][uf] for uf in ufs if uf in malha["contornos"]]
+    if not contornos:
         return -74.0, -34.0, -34.0, 5.5  # Brasil inteiro
-    folga_x, folga_y = (max(xs) - min(xs)) * 0.04, (max(ys) - min(ys)) * 0.04
-    return min(xs) - folga_x, max(xs) + folga_x, min(ys) - folga_y, max(ys) + folga_y
+    xs = np.concatenate([x for x, _ in contornos])
+    ys = np.concatenate([y for _, y in contornos])
+    x_min, x_max, y_min, y_max = np.nanmin(xs), np.nanmax(xs), np.nanmin(ys), np.nanmax(ys)
+    folga_x, folga_y = (x_max - x_min) * 0.04, (y_max - y_min) * 0.04
+    return x_min - folga_x, x_max + folga_x, y_min - folga_y, y_max + folga_y
 
 
 def _zoom_para(lon_min, lon_max, lat_min, lat_max):
@@ -155,6 +159,9 @@ def _bolhas(dados, medida, malha, selecionado, formatador, cores):
     coluna_cor, mapa_cores = cores or ("uf", CORES_UF)
     dados = dados.merge(malha["centros"], on="cod_municipio")
     dados = dados[dados["valor"] > 0].sort_values("valor", ascending=False)
+    # Com muitos estados, as bolhas pequenas viram pontinhos que só pesam no navegador
+    if len(dados) > MAXIMO_DE_BOLHAS:
+        dados = pd.concat([dados.head(MAXIMO_DE_BOLHAS), dados[dados["cod_municipio"] == selecionado]])
     maior = dados["valor"].max() if len(dados) else 1
     menor_bolha = 3 if len(dados) > 1500 else 5  # com o Brasil inteiro, bolhas menores
 
@@ -184,6 +191,11 @@ def _bolhas(dados, medida, malha, selecionado, formatador, cores):
     return camadas
 
 
+MAXIMO_DE_BOLHAS = 1200
+
+# Acima disso o mapa pintado mostra estados, não municípios (o navegador trava com o Brasil todo)
+MAXIMO_DE_MUNICIPIOS = 2000
+
 # Do azul bem claro ao azul escuro do painel
 ESCALA = [[0, "#E3EEF8"], [0.35, "#8DBFE3"], [0.7, "#3A86C4"], [1, "#123A63"]]
 
@@ -192,38 +204,69 @@ def mapa_pintado(dados, medida, malha, ufs, selecionado=None, formatador=None, a
     """Cada município pintado do claro ao escuro pela medida, com as divisas do IBGE.
 
     Zoom com a rodinha, arrastar e clicar num município para filtrar.
+    `dados` precisa de cod_municipio, municipio e valor.
     """
-    geo = {"type": "FeatureCollection",
-           "features": [m for m in malha["geojson"]["features"] if m["properties"]["uf"] in ufs]}
-    todos = [m["id"] for m in geo["features"]]
-    contorno = dict(line=dict(color="#FFFFFF", width=0.4))
+    municipios = [m for m in malha["geojson"]["features"] if m["properties"]["uf"] in ufs]
+    dados = dados[dados["valor"] > 0]
+    com_dado = set(dados["cod_municipio"])
+    sem_dado = [m for m in municipios if m["id"] not in com_dado]
 
     fig = go.Figure()
-    # Fundo: os municípios sem dado ficam cinza
-    fig.add_trace(go.Choropleth(
-        geojson=geo, locations=todos, z=[0] * len(todos), showscale=False,
-        colorscale=[[0, "#E9EDF2"], [1, "#E9EDF2"]], marker=contorno, hoverinfo="skip",
-    ))
-
-    dados = dados[dados["valor"] > 0]
-    fig.add_trace(go.Choropleth(
-        geojson=geo, locations=dados["cod_municipio"], z=dados["valor"],
-        colorscale=ESCALA, marker=contorno,
+    # Fundo cinza só para os municípios sem dado: o GeoJSON vai para o navegador
+    # uma vez por traço, e mandar o Brasil duas vezes deixava o mapa travado
+    if sem_dado:
+        fig.add_trace(_pintura(sem_dado, [m["id"] for m in sem_dado]))
+    fig.add_trace(_pintura(
+        [m for m in municipios if m["id"] in com_dado], dados["cod_municipio"], dados["valor"],
         customdata=[[c, n, t] for c, n, t in zip(dados["cod_municipio"], dados["municipio"],
                                                  _texto(dados["valor"], medida, formatador))],
-        hovertemplate="<b>%{customdata[1]}</b><br>" + medida + ": %{customdata[2]}<br>"
-                      + _DICA_CLIQUE + "<extra></extra>",
+        hover="<b>%{customdata[1]}</b><br>" + medida + ": %{customdata[2]}",
+    ))
+    if selecionado in com_dado:
+        fig.add_trace(_destaque([m for m in municipios if m["id"] == selecionado]))
+    return _enquadrar_pintado(fig, altura)
+
+
+def mapa_pintado_por_estado(dados, medida, malha, ufs, formatador=None, altura=600):
+    """Igual ao mapa_pintado, mas um polígono por estado. `dados` precisa de uf e valor."""
+    estados = [e for e in malha["estados"]["features"] if e["id"] in ufs]
+    dados = dados[dados["valor"] > 0]
+    fig = go.Figure(_pintura(
+        estados, dados["uf"], dados["valor"],
+        customdata=[[u, ESTADOS[u], t] for u, t in zip(dados["uf"],
+                                                      _texto(dados["valor"], medida, formatador))],
+        hover="<b>%{customdata[1]}</b><br>" + medida + ": %{customdata[2]}",
+    ))
+    return _enquadrar_pintado(fig, altura)
+
+
+def _pintura(features, locais, valores=None, customdata=None, hover=None):
+    """Um traço Choropleth. Sem `valores`, pinta tudo de cinza e não responde ao mouse."""
+    geo = {"type": "FeatureCollection", "features": features}
+    contorno = dict(line=dict(color="#FFFFFF", width=0.4))
+    if valores is None:
+        return go.Choropleth(geojson=geo, locations=locais, z=[0] * len(locais), showscale=False,
+                             colorscale=[[0, "#E9EDF2"], [1, "#E9EDF2"]], marker=contorno,
+                             hoverinfo="skip")
+    return go.Choropleth(
+        geojson=geo, locations=locais, z=valores, colorscale=ESCALA, marker=contorno,
+        customdata=customdata, hovertemplate=hover + "<br>" + _DICA_CLIQUE + "<extra></extra>",
         colorbar=dict(thickness=10, len=0.55, outlinewidth=0, title="", tickformat=",.0f"),
         **_SEM_APAGAR,
-    ))
+    )
 
-    if selecionado in set(todos):
-        fig.add_trace(go.Choropleth(
-            geojson=geo, locations=[selecionado], z=[0], showscale=False,
-            colorscale=[[0, "rgba(0,0,0,0)"], [1, "rgba(0,0,0,0)"]],
-            marker=dict(line=dict(color="#E4572E", width=3)), hoverinfo="skip",
-        ))
 
+def _destaque(features):
+    """Borda laranja em volta do município escolhido."""
+    return go.Choropleth(
+        geojson={"type": "FeatureCollection", "features": features},
+        locations=[f["id"] for f in features], z=[0] * len(features), showscale=False,
+        colorscale=[[0, "rgba(0,0,0,0)"], [1, "rgba(0,0,0,0)"]],
+        marker=dict(line=dict(color="#E4572E", width=3)), hoverinfo="skip",
+    )
+
+
+def _enquadrar_pintado(fig, altura):
     fig.update_geos(fitbounds="locations", visible=False, projection_type="mercator",
                     bgcolor="rgba(0,0,0,0)")
     fig.update_layout(**{**_BASE, "dragmode": "pan"}, height=altura)
@@ -257,11 +300,15 @@ def mapa(dados, medida, malha, ufs, selecionado=None, com_ruas=False, formatador
         )
         return fig
 
-    for uf in ufs:
-        xs, ys = malha["contornos"].get(uf, ([], []))
-        fig.add_trace(go.Scatter(
-            x=xs, y=ys, mode="lines", line=dict(color="#C9D2DD", width=0.5), hoverinfo="skip",
-        ))
+    if len(ufs) == 1:
+        # Um estado só: a divisa de cada município
+        xs, ys = malha["contornos"].get(ufs[0], ([], []))
+    else:
+        # Vários estados: só a divisa dos estados, que é bem mais leve
+        xs, ys = malha["divisas"]
+    fig.add_trace(go.Scatter(
+        x=xs, y=ys, mode="lines", line=dict(color="#C9D2DD", width=0.6), hoverinfo="skip",
+    ))
 
     for c in camadas:
         fig.add_trace(go.Scatter(

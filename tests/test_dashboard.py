@@ -2,6 +2,7 @@
 
 from types import SimpleNamespace
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -81,7 +82,33 @@ def test_preparar_malha_aceita_multipolygon():
     centro = malha["centros"].iloc[0]
 
     assert centro["lon"] == pytest.approx(-48.65)  # centro do pedaço maior
-    assert malha["contornos"]["SC"][0].count(None) == 2  # um separador por pedaço
+    assert np.isnan(malha["contornos"]["SC"][0]).sum() == 2  # um separador por pedaço
+
+
+def _quadrado(x, y, uf, codigo):
+    anel = [[x, y], [x, y + 1], [x + 1, y + 1], [x + 1, y], [x, y]]
+    return {"id": codigo, "properties": {"uf": uf},
+            "geometry": {"type": "Polygon", "coordinates": [anel]}}
+
+
+def test_estado_junta_os_municipios_e_tira_a_divisa_de_dentro():
+    # Dois quadrados lado a lado no mesmo estado viram um retângulo só
+    malha = dados.preparar_malha({"features": [_quadrado(0, 0, "SC", "1"), _quadrado(1, 0, "SC", "2")]})
+    (estado,) = malha["estados"]["features"]
+    (poligono,) = estado["geometry"]["coordinates"]
+    (borda,) = poligono
+    assert estado["id"] == "SC"
+    assert len(borda) == 7  # 6 pontos da borda de fora + o ponto que fecha o anel
+    assert {tuple(p) for p in borda} == {(0, 0), (1, 0), (2, 0), (2, 1), (1, 1), (0, 1)}
+
+
+def test_estado_cercado_vira_buraco():
+    # Um 3x3 em que o quadrado do meio é de outro estado (como o DF dentro de Goiás)
+    quadrados = [_quadrado(x, y, "GO", f"{x}{y}") for x in range(3) for y in range(3) if (x, y) != (1, 1)]
+    malha = dados.preparar_malha({"features": [*quadrados, _quadrado(1, 1, "DF", "11")]})
+    goias = next(e for e in malha["estados"]["features"] if e["id"] == "GO")
+    (poligono,) = goias["geometry"]["coordinates"]
+    assert len(poligono) == 2  # borda de fora + buraco
 
 
 # ── Filtros (cliques) ────────────────────────────────────────
@@ -126,3 +153,13 @@ def test_preparar_malha_deixa_a_borda_no_sentido_horario():
     borda = dados.preparar_malha(geojson)["geojson"]["features"][0]["geometry"]["coordinates"][0][0]
 
     assert dados._area_com_sinal(borda) < 0
+
+
+def test_taxa_por_estado_soma_o_estado_inteiro():
+    from dashboard.paginas.fluxo import taxa_por_estado
+
+    moradores = pd.DataFrame({"uf": ["SC", "SC", "PR"], "internacoes": [10, 30, 5],
+                              "populacao": [1_000, 3_000, 10_000]})
+    df = taxa_por_estado(moradores).set_index("uf")["valor"]
+    assert df["SC"] == pytest.approx(1_000)  # 40 internações / 4 mil hab.
+    assert df["PR"] == pytest.approx(50)
