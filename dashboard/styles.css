@@ -1,5 +1,5 @@
-/* Preto, branco e cinzas. Uma cor de destaque só para o item escolhido;
-   vermelho só para óbitos. */
+/* Fundo branco e cinzas; a cor fica nos ícones, nas marcas e no item escolhido.
+   Vermelho só para óbitos. */
 
 /* O Streamlit marca o .stApp com color-scheme light ou dark conforme o tema,
    e o light-dark() escolhe a cor certa sem precisar recarregar a página. */
@@ -13,8 +13,10 @@
     --texto-medio: light-dark(#52525B, #A1A1AA);
     --texto-fraco: light-dark(#71717A, #8B8B94);
     --barra-dado: light-dark(#D6E6F5, #1E3A5F);
-    --destaque: light-dark(#2563EB, #60A5FA);
-    --destaque-suave: light-dark(#EEF3FE, #172036);
+    /* --marca é para traços e ícones; --destaque, para texto (passa no contraste da WCAG) */
+    --marca: light-dark(#3A86C4, #5DA9E9);
+    --destaque: light-dark(#23679F, #7CBCF0);
+    --destaque-suave: light-dark(#EAF3FB, #142536);
     --obito: light-dark(#DC2626, #F87171);
     --sombra: light-dark(rgba(24, 24, 27, .05), rgba(0, 0, 0, 0));
 
@@ -35,9 +37,11 @@ header[data-testid="stHeader"] {
 }
 header[data-testid="stHeader"] a p { color: var(--texto-medio); font-weight: 500; }
 header[data-testid="stHeader"] a { border-radius: 6px; transition: background-color var(--rapido) var(--suave); }
-header[data-testid="stHeader"] a:hover { background: var(--fundo); }
-header[data-testid="stHeader"] [aria-current="page"] { background: var(--fundo); }
-header[data-testid="stHeader"] [aria-current="page"] p { color: var(--texto); font-weight: 600; }
+header[data-testid="stHeader"] a:hover { background: var(--destaque-suave); }
+header[data-testid="stHeader"] [aria-current="page"] {
+    background: var(--destaque-suave); box-shadow: inset 0 -2px 0 var(--marca);
+}
+header[data-testid="stHeader"] [aria-current="page"] p { color: var(--destaque); font-weight: 600; }
 
 /* ── Blocos ── */
 [class*="st-key-tile-"], .st-key-sistemas, .cartao {
@@ -68,13 +72,14 @@ header[data-testid="stHeader"] [aria-current="page"] p { color: var(--texto); fo
     font-weight: 600;
     color: var(--texto);
     line-height: 1.3;
-    padding: 2px 0 8px;
+    padding: 2px 0 8px 9px;
     margin-bottom: 4px;
     border-bottom: 1px solid var(--borda);
+    border-left: 3px solid var(--marca);
 }
 
 /* ── Cabeçalho ── */
-.logo { display: flex; justify-content: center; color: var(--texto); }
+.logo { display: flex; justify-content: center; color: var(--marca); }
 .titulo-painel {
     font-size: 1.3rem; font-weight: 600; letter-spacing: -.01em;
     white-space: nowrap; color: var(--texto); text-align: center; line-height: 1.2;
@@ -87,7 +92,8 @@ header[data-testid="stHeader"] [aria-current="page"] p { color: var(--texto); fo
 .estado .sigla.longa { font-size: 1.05rem; }
 
 .kpi, .atualizado { display: flex; align-items: center; justify-content: center; gap: 14px; }
-.kpi-icone, .atualizado-icone { color: var(--texto-fraco); }
+.kpi-icone { color: var(--marca); }
+.atualizado-icone { color: var(--texto-fraco); }
 .kpi-rotulo { font-size: .8rem; color: var(--texto-medio); text-align: center; }
 .kpi-valor {
     font-size: 1.7rem; font-weight: 700; letter-spacing: -.02em;
@@ -117,14 +123,16 @@ header[data-testid="stHeader"] [aria-current="page"] p { color: var(--texto); fo
     transition: background-color var(--rapido) var(--suave), color var(--rapido) var(--suave),
                 box-shadow var(--rapido) var(--suave);
 }
+/* No claro, a cor do ícone escurece um pouco: amarelo e laranja puros somem no branco */
 .st-key-sistemas button::before {
-    content: ""; width: 24px; height: 24px; background-color: currentColor;
+    content: ""; width: 24px; height: 24px;
+    background-color: light-dark(color-mix(in srgb, var(--cor-icone) 62%, #000), var(--cor-icone));
     -webkit-mask: var(--icone) center / contain no-repeat; mask: var(--icone) center / contain no-repeat;
 }
 .st-key-sistemas button p { font-size: .8rem; color: inherit; white-space: nowrap; }
 .st-key-sistemas button:hover { background: var(--bloco-hover); color: var(--texto); }
 .st-key-sistemas button[kind="primary"] {
-    background: var(--destaque-suave); color: var(--destaque); box-shadow: inset 0 -2px 0 var(--destaque);
+    background: var(--destaque-suave); color: var(--destaque); box-shadow: inset 0 -2px 0 var(--marca);
 }
 .st-key-sistemas button[kind="primary"] p { font-weight: 600; }
 
@@ -154,7 +162,7 @@ header[data-testid="stHeader"] [aria-current="page"] p { color: var(--texto); fo
 .st-key-tile-medidas [role="radiogroup"] { gap: 4px; width: 100%; flex-direction: column; align-items: stretch; }
 .st-key-tile-medidas label[data-baseweb="radio"] {
     width: 100%; margin: 0; padding: 8px 10px; box-sizing: border-box; align-items: center; gap: 10px;
-    border: 1px solid var(--borda); border-radius: 6px; cursor: pointer; color: var(--texto-fraco);
+    border: 1px solid var(--borda); border-radius: 6px; cursor: pointer; color: var(--marca);
     transition: background-color var(--rapido) var(--suave), border-color var(--rapido) var(--suave),
                 color var(--rapido) var(--suave);
 }
@@ -166,7 +174,7 @@ header[data-testid="stHeader"] [aria-current="page"] p { color: var(--texto); fo
 .st-key-tile-medidas label[data-baseweb="radio"] p { font-size: .88rem; color: var(--texto); }
 .st-key-tile-medidas label[data-baseweb="radio"]:hover { background: var(--bloco-hover); border-color: var(--borda-forte); }
 .st-key-tile-medidas label[data-baseweb="radio"]:has(input:checked) {
-    background: var(--destaque-suave); border-color: var(--destaque); color: var(--destaque);
+    background: var(--destaque-suave); border-color: var(--marca); color: var(--destaque);
 }
 .st-key-tile-medidas label[data-baseweb="radio"]:has(input:checked) p { color: var(--destaque); font-weight: 600; }
 
@@ -205,10 +213,17 @@ header[data-testid="stHeader"] [aria-current="page"] p { color: var(--texto); fo
 [class*="st-key-cartoes"] { gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
 [class*="st-key-cartoes"] > div { flex: 1 1 200px; }
 .cartao { display: flex; align-items: center; gap: 14px; height: 96px; padding: 0 18px; }
+/* Cada cartão da linha com uma cor: o ícone nela, sobre um círculo bem suave dela */
 .cartao-icone {
-    flex: 0 0 44px; height: 44px; border-radius: 50%; background: var(--fundo); color: var(--texto-medio);
+    flex: 0 0 44px; height: 44px; border-radius: 50%;
+    color: light-dark(color-mix(in srgb, var(--cor-cartao, #3A86C4) 62%, #000), var(--cor-cartao, #3A86C4));
+    background: color-mix(in srgb, var(--cor-cartao, #3A86C4) 14%, transparent);
     display: flex; align-items: center; justify-content: center;
 }
+[class*="st-key-cartoes"] > div:nth-child(4n + 1) { --cor-cartao: #3A86C4; }
+[class*="st-key-cartoes"] > div:nth-child(4n + 2) { --cor-cartao: #2A9D8F; }
+[class*="st-key-cartoes"] > div:nth-child(4n + 3) { --cor-cartao: #E76F51; }
+[class*="st-key-cartoes"] > div:nth-child(4n + 4) { --cor-cartao: #F4A261; }
 .cartao-rotulo { font-size: .8rem; color: var(--texto-medio); }
 .cartao-valor { font-size: 1.55rem; font-weight: 700; letter-spacing: -.02em; color: var(--texto); line-height: 1.25; }
 .cartao-detalhe { font-size: .75rem; color: var(--texto-fraco); }

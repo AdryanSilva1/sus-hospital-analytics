@@ -2,6 +2,9 @@
 
 from urllib.parse import quote
 
+# Cor do ícone de cada botão de sistema, repetindo nessa ordem (mesma paleta dos gráficos)
+CORES_DOS_ICONES = ["#3A86C4", "#E76F51", "#2A9D8F", "#F4A261", "#457B9D", "#E9C46A"]
+
 SISTEMAS = {
     "Circulatório":
         '<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/>'
@@ -144,7 +147,8 @@ def _mascara(desenho):
 
 def css():
     """Regras CSS que põem o ícone em cada botão de sistema e em cada opção de medida."""
-    regras = [f".st-key-sistema-{i} button {{ --icone: {_mascara(SISTEMAS[nome])}; }}"
+    regras = [f".st-key-sistema-{i} button {{ --icone: {_mascara(SISTEMAS[nome])}; "
+              f"--cor-icone: {CORES_DOS_ICONES[i % len(CORES_DOS_ICONES)]}; }}"
               for i, nome in enumerate(BOTOES)]
     opcao = ".st-key-tile-medidas label[data-baseweb='radio']"
     regras += [f"{opcao}:nth-of-type({i}) {{ --icone: {_mascara(desenho)}; }}"
