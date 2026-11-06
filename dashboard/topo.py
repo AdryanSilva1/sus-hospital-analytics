@@ -59,7 +59,7 @@ def cabecalho(controle):
     e o espaço reservado para o número principal, preenchido depois por numero_principal()."""
     anos = [int(a) for a in sorted(controle["ano"].unique(), reverse=True)]
     c_logo, c_titulo, c_uf, c_numero, c_ano, c_ajuda, c_atual = st.columns(
-        [0.55, 2.2, 1.75, 1.8, 0.8, 0.5, 1.4], vertical_alignment="center")
+        [0.5, 2.1, 1.7, 1.7, 0.95, 0.5, 1.55], vertical_alignment="center")
 
     with c_logo, tile("logo"):
         html(f'<div class="logo">{LOGO}</div>')

@@ -80,9 +80,11 @@ header[data-testid="stHeader"] [aria-current="page"] p { color: var(--destaque);
 
 /* ── Cabeçalho ── */
 .logo { display: flex; justify-content: center; color: var(--marca); }
+/* Diminui junto com a tela e, se ainda faltar espaço, quebra em duas linhas
+   (antes passava por cima do bloco do lado em telas menores) */
 .titulo-painel {
-    font-size: 1.3rem; font-weight: 600; letter-spacing: -.01em;
-    white-space: nowrap; color: var(--texto); text-align: center; line-height: 1.2;
+    font-size: clamp(1rem, .45rem + .75vw, 1.3rem); font-weight: 600; letter-spacing: -.01em;
+    text-wrap: balance; color: var(--texto); text-align: center; line-height: 1.2;
 }
 .subtitulo-painel { font-size: .85rem; color: var(--texto-fraco); text-align: center; }
 
@@ -101,7 +103,7 @@ header[data-testid="stHeader"] [aria-current="page"] p { color: var(--destaque);
 }
 .kpi-valor.obito { color: var(--obito); }
 .kpi-detalhe { font-size: .75rem; color: var(--texto-fraco); text-align: center; }
-.atualizado-rotulo { font-size: .78rem; color: var(--texto-fraco); text-align: center; }
+.atualizado-rotulo { font-size: .74rem; color: var(--texto-fraco); text-align: center; line-height: 1.3; }
 .atualizado-data { font-size: 1.1rem; font-weight: 600; color: var(--texto); text-align: center; white-space: nowrap; }
 
 .st-key-tile-ajuda button {
