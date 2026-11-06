@@ -38,6 +38,12 @@ def _tabela(rng, colunas, valores, uf, ano):
     return df
 
 
+def _salvar_por_estado(df, pasta):
+    pasta.mkdir(parents=True, exist_ok=True)
+    for uf, parte in df.groupby("uf"):
+        parte.to_parquet(pasta / f"{uf}.parquet", index=False)
+
+
 def gerar(pasta, municipios_por_estado=12):
     pasta = Path(pasta)
     pasta.mkdir(parents=True, exist_ok=True)
@@ -80,7 +86,7 @@ def gerar(pasta, municipios_por_estado=12):
                 rng, ["cod_residencia", "cod_municipio"], [codigos[::3] + do_estado, do_estado], uf, ano))
 
     for nome, partes in tabelas.items():
-        pd.concat(partes).to_parquet(pasta / f"por_{nome}.parquet", index=False)
+        _salvar_por_estado(pd.concat(partes), pasta / f"por_{nome}")
 
     municipios.to_parquet(pasta / "municipios.parquet", index=False)
     pd.DataFrame({"cod_municipio": codigos, "populacao": rng.integers(8_000, 600_000, len(codigos))}
@@ -88,9 +94,10 @@ def gerar(pasta, municipios_por_estado=12):
     pd.DataFrame({"cid": [c for c, _ in CIDS], "descricao": [f"Doença {c}" for c, _ in CIDS]}
                  ).to_parquet(pasta / "cid10.parquet", index=False)
     (pasta / "municipios.geojson").write_text(json.dumps({"type": "FeatureCollection", "features": malha}))
-    pd.DataFrame([{"uf": uf, "ano": ano, "meses": 12 if ano < ANOS[-1] else 8,
-                   "ultimo_mes": 12 if ano < ANOS[-1] else 8, "atualizado_em": "2026-11-05"}
-                  for uf in ESTADOS for ano in ANOS]).to_parquet(pasta / "controle.parquet", index=False)
+    _salvar_por_estado(pd.DataFrame([{"uf": uf, "ano": ano, "meses": 12 if ano < ANOS[-1] else 8,
+                                      "ultimo_mes": 12 if ano < ANOS[-1] else 8,
+                                      "atualizado_em": "2026-11-05"}
+                                     for uf in ESTADOS for ano in ANOS]), pasta / "controle")
 
 
 if __name__ == "__main__":

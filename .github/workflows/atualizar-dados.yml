@@ -13,9 +13,36 @@ permissions:
   contents: write
 
 jobs:
-  atualizar:
+  testes:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements-pipeline.txt
+      - run: pytest -q
+
+  # Os estados rodam em grupos ao mesmo tempo. Cada estado grava só os
+  # próprios arquivos (ex.: por_municipio/SP.parquet), então os grupos
+  # não brigam entre si na hora de salvar.
+  atualizar:
+    needs: testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        estados:
+          - "SP"
+          - "MG"
+          - "RJ ES"
+          - "BA SE AL"
+          - "PE PB RN CE"
+          - "MA PI PA AP AM RR AC RO TO"
+          - "PR SC RS"
+          - "GO DF MT MS"
 
     steps:
       - uses: actions/checkout@v4
@@ -28,11 +55,10 @@ jobs:
       - name: Instalar dependências
         run: pip install -r requirements-pipeline.txt
 
-      - name: Testes
-        run: pytest -q
-
-      - name: Rodar pipeline
-        run: python -m pipeline.run --ano-inicial ${{ inputs.ano_inicial || '2019' }}
+      # As tabelas do IBGE ficam salvas no repositório (a API do IBGE não
+      # responde fora do Brasil), por isso aqui só entram os dados do DATASUS.
+      - name: Rodar pipeline (${{ matrix.estados }})
+        run: python -m pipeline.run --sem-apoio --uf ${{ matrix.estados }} --ano-inicial ${{ inputs.ano_inicial || '2019' }}
 
       - name: Salvar dados novos
         run: |
@@ -40,9 +66,13 @@ jobs:
           git config user.email "152924015+AdryanSilva1@users.noreply.github.com"
           git add data/processados
           if git diff --cached --quiet; then
-            echo "Nada novo este mês."
-          else
-            git commit -m "dados: atualização mensal $(date +%Y-%m)"
-            git pull --rebase origin main   # alguém pode ter enviado código enquanto rodava
-            git push
+            echo "Nada novo."
+            exit 0
           fi
+          git commit -m "dados: ${{ matrix.estados }} ($(date +%Y-%m))"
+          # Outros grupos podem ter salvo antes: atualiza e tenta de novo
+          for tentativa in 1 2 3 4 5; do
+            git pull --rebase origin main && git push && exit 0
+            sleep $((tentativa * 15))
+          done
+          exit 1

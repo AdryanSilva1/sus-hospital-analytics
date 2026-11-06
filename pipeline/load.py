@@ -3,7 +3,7 @@ from datetime import date
 
 import pandas as pd
 
-from pipeline.config import ARQ_CONTROLE, PASTA_PROCESSADOS, TABELAS
+from pipeline.config import PASTA_PROCESSADOS, TABELAS, UFS, arquivo_da_tabela
 
 
 def _ler(arquivo):
@@ -13,37 +13,46 @@ def _ler(arquivo):
 
 
 def _salvar(df, arquivo):
-    PASTA_PROCESSADOS.mkdir(parents=True, exist_ok=True)
+    arquivo.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(arquivo, index=False)
 
 
-def meses_salvos():
-    """{(uf, ano): quantos meses já estão no resumo}"""
-    controle = _ler(ARQ_CONTROLE)
-    if controle.empty:
+def _sem_o_ano(df, ano):
+    return df if df.empty else df[df["ano"] != ano]
+
+
+def meses_salvos(uf):
+    """{ano: quantos meses já estão no resumo} de um estado.
+
+    Se faltar alguma tabela do estado (ex.: uma tabela nova no projeto),
+    devolve vazio para o estado ser refeito inteiro.
+    """
+    if not all(arquivo_da_tabela(nome, uf).exists() for nome in TABELAS):
         return {}
-    return {(r.uf, r.ano): r.meses for r in controle.itertuples()}
+    controle = _ler(arquivo_da_tabela("controle", uf))
+    return {r.ano: r.meses for r in controle.itertuples()}
 
 
 def salvar_ano(resumos, uf, ano, meses, ultimo_mes):
     """Troca o ano inteiro de um estado pelos resumos novos."""
     for nome, novo in resumos.items():
-        atual = _ler(TABELAS[nome])
-        if not atual.empty:
-            atual = atual[~((atual["uf"] == uf) & (atual["ano"] == ano))]
+        arquivo = arquivo_da_tabela(nome, uf)
+        final = pd.concat([_sem_o_ano(_ler(arquivo), ano), novo], ignore_index=True)
+        _salvar(final.sort_values("ano").reset_index(drop=True), arquivo)
 
-        final = pd.concat([atual, novo], ignore_index=True)
-        _salvar(final.sort_values(["uf", "ano"]).reset_index(drop=True), TABELAS[nome])
-
-    controle = _ler(ARQ_CONTROLE)
-    if not controle.empty:
-        controle = controle[~((controle["uf"] == uf) & (controle["ano"] == ano))]
-
+    arquivo = arquivo_da_tabela("controle", uf)
     linha = pd.DataFrame([{
         "uf": uf, "ano": ano, "meses": meses,
         "ultimo_mes": ultimo_mes, "atualizado_em": date.today().isoformat(),
     }])
-    _salvar(pd.concat([controle, linha], ignore_index=True), ARQ_CONTROLE)
+    _salvar(pd.concat([_sem_o_ano(_ler(arquivo), ano), linha], ignore_index=True), arquivo)
+
+
+def ler_tabela(nome):
+    """Junta os arquivos de todos os estados de uma tabela."""
+    partes = [_ler(arquivo_da_tabela(nome, uf)) for uf in UFS]
+    partes = [p for p in partes if not p.empty]
+    return pd.concat(partes, ignore_index=True) if partes else pd.DataFrame()
 
 
 def salvar_tabela(df, arquivo):

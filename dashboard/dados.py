@@ -24,7 +24,7 @@ TABELA_DO_FILTRO = {
 @st.cache_data
 def carregar():
     """Lê as tabelas geradas pelo pipeline. O painel nunca busca dado no DATASUS."""
-    tabelas = {nome: pd.read_parquet(PASTA / f"por_{nome}.parquet") for nome in TABELAS}
+    tabelas = {nome: _ler_pasta(f"por_{nome}") for nome in TABELAS}
 
     municipios = _municipios(tabelas["municipio"])
     nomes = municipios[["cod_municipio", "municipio"]]
@@ -45,8 +45,15 @@ def carregar():
     if arq_malha.exists():
         tabelas["malha"] = preparar_malha(json.loads(arq_malha.read_text(encoding="utf-8")))
 
-    controle = pd.read_parquet(PASTA / "controle.parquet")
-    return tabelas, controle
+    return tabelas, _ler_pasta("controle")
+
+
+def _ler_pasta(pasta):
+    """Junta os arquivos de todos os estados (ex.: por_municipio/SC.parquet, PR.parquet...)."""
+    arquivos = sorted((PASTA / pasta).glob("*.parquet"))
+    if not arquivos:
+        raise FileNotFoundError(PASTA / pasta)
+    return pd.concat([pd.read_parquet(a) for a in arquivos], ignore_index=True)
 
 
 def _municipios(por_municipio):
