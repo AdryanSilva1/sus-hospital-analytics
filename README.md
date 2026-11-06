@@ -2,6 +2,7 @@
 
 ### Internações hospitalares do SUS no Brasil inteiro: 27 estados, 5.570 municípios
 
+[![Painel ao vivo](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://sus-analytics.streamlit.app/)
 [![Testes](https://github.com/AdryanSilva1/sus-hospital-analytics/actions/workflows/testes.yml/badge.svg)](https://github.com/AdryanSilva1/sus-hospital-analytics/actions/workflows/testes.yml)
 [![Atualizar dados](https://github.com/AdryanSilva1/sus-hospital-analytics/actions/workflows/atualizar-dados.yml/badge.svg)](https://github.com/AdryanSilva1/sus-hospital-analytics/actions/workflows/atualizar-dados.yml)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
@@ -12,7 +13,7 @@ O pipeline baixa os arquivos direto do FTP do Ministério da Saúde, limpa, resu
 Parquet. O painel só lê o resultado. Todo mês o GitHub Actions roda tudo de novo e os dados
 se atualizam sozinhos, sem nenhum download manual.
 
-<!-- LINK-AO-VIVO -->
+**▶️ [Abrir o painel ao vivo: sus-analytics.streamlit.app](https://sus-analytics.streamlit.app/)**
 
 ![Painel com o Brasil inteiro em 2026](docs/painel.png)
 
@@ -203,6 +204,8 @@ sus-hospital-analytics/
 
 **SUS Analytics** is an end-to-end data project on public hospital admissions (SUS) across
 all of Brazil: 27 states and 5,570 municipalities.
+
+**Live dashboard:** https://sus-analytics.streamlit.app/
 
 - **Pipeline (ETL):** downloads the official DATASUS hospital records straight from the Ministry
   of Health FTP, cleans and aggregates them into five Parquet tables, and enriches them with
