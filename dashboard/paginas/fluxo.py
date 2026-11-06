@@ -5,7 +5,7 @@ import streamlit as st
 from dashboard import mapas, visuais
 from dashboard.brasil import ESTADO_DO_CODIGO
 from dashboard.componentes import aviso, cartao, grafico, tabela, tile, titulo
-from dashboard.medidas import decimal, numero, por_100_mil, porcentagem
+from dashboard.medidas import decimal, numero, por_100_mil, porcentagem, somar
 
 TAXA = "Internações por 100 mil hab."
 ALTURA_FAIXA = 560  # mapa e polos com a mesma altura
@@ -47,8 +47,7 @@ def moradores(painel):
 
     # Conta todos os hospitais da região: morador de SC internado no PR também conta para SC
     fluxo = painel.dados("fluxo", ignorar=["uf", "cod_municipio"])
-    df = (fluxo.groupby(["cod_residencia", "residencia"])
-          [["internacoes", "obitos", "valor_total"]].sum().reset_index()
+    df = (somar(fluxo, ["cod_residencia", "residencia"], ["internacoes", "obitos", "valor_total"])
           .rename(columns={"cod_residencia": "cod_municipio", "residencia": "municipio"}))
     df["uf"] = df["cod_municipio"].str[:2].map(ESTADO_DO_CODIGO)
     return df[df["uf"].isin(painel.ufs)].merge(populacao, on="cod_municipio")
@@ -95,7 +94,7 @@ def mapa(painel, pessoas, taxa, municipio):
 def polos(fluxo):
     """Cidades que mais recebem pacientes de outras cidades."""
     de_fora = fluxo[fluxo["cod_residencia"] != fluxo["cod_municipio"]]
-    df = de_fora.groupby(["cod_municipio", "municipio"])["internacoes"].sum().reset_index()
+    df = somar(de_fora, ["cod_municipio", "municipio"], ["internacoes"])
     df["uf"] = df["cod_municipio"].str[:2].map(ESTADO_DO_CODIGO)
     return df.rename(columns={"internacoes": "valor"}).sort_values("valor", ascending=False).head(15)
 
@@ -104,7 +103,7 @@ def ligacoes(fluxo, municipio, de, para):
     """Top 10 cidades ligadas a `municipio` (de onde vêm ou para onde vão os pacientes)."""
     df = fluxo[(fluxo[de] == municipio) & (fluxo[para] != municipio)]
     nome = "residencia" if para == "cod_residencia" else "municipio"
-    df = df.groupby([para, nome])["internacoes"].sum().reset_index()
+    df = somar(df, [para, nome], ["internacoes"])
     return df.rename(columns={"internacoes": "valor"}).sort_values("valor", ascending=False).head(10)
 
 

@@ -1,5 +1,7 @@
 """Medidas do painel (internações, óbitos, valor...) e formatação no padrão brasileiro."""
 
+import pandas as pd
+
 METRICAS = ["internacoes", "obitos", "valor_total", "dias_internado"]
 
 # nome: (numerador, denominador, como formatar)
@@ -26,10 +28,20 @@ def _razao(numerador, denominador, formato):
     return valor * 100 if formato == "porcentagem" else valor
 
 
+def somar(df, por, colunas=METRICAS):
+    """Soma `colunas` por `por`. As colunas de categoria voltam a ser texto simples,
+    para o resultado aceitar contas como municipio + " (SC)"."""
+    grupo = df.groupby(por, observed=True)[colunas].sum().reset_index()
+    for coluna in por:
+        if isinstance(grupo[coluna].dtype, pd.CategoricalDtype):
+            grupo[coluna] = grupo[coluna].astype(str)
+    return grupo
+
+
 def calcular(df, por, medida):
     """Agrupa por `por` e cria a coluna `valor` com a medida escolhida."""
     numerador, denominador, formato = MEDIDAS[medida]
-    grupo = df.groupby(por, observed=True)[METRICAS].sum().reset_index()
+    grupo = somar(df, por)
 
     if denominador:
         grupo = grupo[grupo[denominador] > 0]

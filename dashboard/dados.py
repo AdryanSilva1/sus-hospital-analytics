@@ -44,6 +44,8 @@ def carregar():
     tabelas["municipios"] = municipios
 
     tabelas["cid"] = _com_descricao_cid(tabelas["cid"])
+    for nome in TABELAS:
+        tabelas[nome] = _compactar(tabelas[nome])
     tabelas["populacao"] = _ler_opcional("populacao.parquet")
 
     arq_malha = PASTA / "municipios.geojson"
@@ -52,6 +54,28 @@ def carregar():
         tabelas["malha"] = preparar_malha(json.loads(arq_malha.read_text(encoding="utf-8")))
 
     return tabelas, _ler_pasta("controle")
+
+
+def _compactar(df):
+    """Texto vira categoria e número inteiro vira int32: a memória cai para cerca de 1/4.
+
+    Com o Brasil todo eram ~320 MB e o painel caía em máquina com pouca RAM.
+    Colunas que são comparadas entre si (onde mora × onde foi internado) dividem
+    as mesmas categorias, senão o pandas não deixa comparar.
+    """
+    df = df.copy()
+    pares = [("cod_residencia", "cod_municipio"), ("residencia", "municipio")]
+    for a, b in pares:
+        if a in df and b in df:
+            tipo = pd.CategoricalDtype(sorted(set(df[a].dropna()) | set(df[b].dropna())))
+            df[a], df[b] = df[a].astype(tipo), df[b].astype(tipo)
+    for coluna in df.columns:
+        tipo = df[coluna].dtype
+        if tipo == "int64":
+            df[coluna] = df[coluna].astype("int32")
+        elif not isinstance(tipo, pd.CategoricalDtype) and pd.api.types.is_string_dtype(tipo):
+            df[coluna] = df[coluna].astype("category")
+    return df
 
 
 def _ler_pasta(pasta):
